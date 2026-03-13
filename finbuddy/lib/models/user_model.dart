@@ -66,6 +66,7 @@ class UserModel {
   final String email;
   final String photoUrl;
   final String upiId;
+  final bool isSetupComplete;
   final List<RecurringIncome> recurringIncomes;
   final List<RecurringExpense> recurringExpenses;
   final DateTime? createdAt;
@@ -77,6 +78,7 @@ class UserModel {
     required this.email,
     required this.photoUrl,
     this.upiId = '',
+    this.isSetupComplete = false,
     this.recurringIncomes = const [],
     this.recurringExpenses = const [],
     this.createdAt,
@@ -90,6 +92,7 @@ class UserModel {
       'email': email,
       'photoUrl': photoUrl,
       'upiId': upiId,
+      'isSetupComplete': isSetupComplete,
       'recurringIncomes': recurringIncomes.map((x) => x.toMap()).toList(),
       'recurringExpenses': recurringExpenses.map((x) => x.toMap()).toList(),
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
@@ -104,6 +107,7 @@ class UserModel {
       email: map['email'] ?? '',
       photoUrl: map['photoUrl'] ?? '',
       upiId: map['upiId'] ?? '',
+      isSetupComplete: map['isSetupComplete'] ?? false,
       recurringIncomes: map['recurringIncomes'] != null
           ? List<RecurringIncome>.from(map['recurringIncomes']?.map((x) => RecurringIncome.fromMap(x)))
           : [],

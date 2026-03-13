@@ -12,6 +12,7 @@ class AuthService extends ChangeNotifier {
   UserModel? _currentUserData;
   UserModel? get currentUserData => _currentUserData;
 
+  User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Future<void> signInWithGoogle() async {
