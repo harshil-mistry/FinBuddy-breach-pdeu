@@ -8,6 +8,27 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// --- Firebase Admin Setup ---
+const admin = require("firebase-admin");
+try {
+    let serviceAccount;
+    // Attempt to load from base64 env variable if it exists
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+        const decodedKey = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8');
+        serviceAccount = JSON.parse(decodedKey);
+    } else {
+        // Fallback to local json file if env variable isn't present
+        serviceAccount = require("./serviceAccountKey.json");
+    }
+
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+    });
+    console.log("✅ Firebase Admin initialized successfully (Push Notifications enabled).");
+} catch (err) {
+    console.warn("⚠️  Firebase Admin INIT FAILED: You need to set FIREBASE_SERVICE_ACCOUNT_BASE64 in your .env file or have a valid serviceAccountKey.json file.");
+}
+
 // --- CORS ---
 app.use(cors());
 app.use(express.json());
@@ -181,4 +202,41 @@ Examples:
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`✅ FinBuddy Receipt Scanner running on http://0.0.0.0:${PORT}`);
     console.log(`   POST /api/scan-receipt  — Upload a receipt image`);
+    console.log(`   POST /api/send-nudge    — Send a push notification (FCM)`);
+});
+
+// --- POST /api/send-nudge ---
+app.post("/api/send-nudge", async (req, res) => {
+    try {
+        const { fcmToken, senderName, amount } = req.body;
+
+        if (!fcmToken || !senderName || !amount) {
+            return res.status(400).json({ status: false, error: "Missing required fields: fcmToken, senderName, or amount" });
+        }
+
+        const message = {
+            token: fcmToken,
+            notification: {
+                title: "Payment Reminder 💸",
+                body: `${senderName} nudged you to settle up ₹${amount}.`,
+            },
+            data: {
+                type: "nudge",
+            },
+            android: {
+                notification: {
+                    sound: "default",
+                    clickAction: "FLUTTER_NOTIFICATION_CLICK"
+                }
+            }
+        };
+
+        const response = await admin.messaging().send(message);
+        console.log(`🚀 Push notification sent to ${senderName}'s debtor:`, response);
+        return res.json({ status: true, messageId: response });
+
+    } catch (err) {
+        console.error("❌ Send Nudge Error:", err.message);
+        return res.status(500).json({ status: false, error: err.message });
+    }
 });

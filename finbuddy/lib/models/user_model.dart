@@ -71,6 +71,7 @@ class UserModel {
   final List<RecurringExpense> recurringExpenses;
   final DateTime? createdAt;
   final DateTime? lastLogin;
+  final String? fcmToken;
 
   UserModel({
     required this.uid,
@@ -83,6 +84,7 @@ class UserModel {
     this.recurringExpenses = const [],
     this.createdAt,
     this.lastLogin,
+    this.fcmToken,
   });
 
   Map<String, dynamic> toMap() {
@@ -97,6 +99,7 @@ class UserModel {
       'recurringExpenses': recurringExpenses.map((x) => x.toMap()).toList(),
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
       'lastLogin': lastLogin != null ? Timestamp.fromDate(lastLogin!) : FieldValue.serverTimestamp(),
+      'fcmToken': fcmToken,
     };
   }
 
@@ -116,6 +119,7 @@ class UserModel {
           : [],
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       lastLogin: (map['lastLogin'] as Timestamp?)?.toDate(),
+      fcmToken: map['fcmToken'],
     );
   }
 }

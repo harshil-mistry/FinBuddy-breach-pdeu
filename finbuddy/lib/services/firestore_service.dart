@@ -4,6 +4,8 @@ import '../models/user_model.dart';
 import '../models/pool_model.dart';
 import '../models/shared_expense_model.dart';
 import '../models/notification_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -309,6 +311,28 @@ class FirestoreService {
     );
 
     await docRef.set(notification.toMap());
+
+    // Trigger actual push notification via our Node js server using the target's FCM token
+    final targetUser = await getUser(toUid);
+    final senderUser = await getUser(fromUid);
+
+    if (targetUser?.fcmToken != null) {
+      final url = Uri.parse('http://127.0.0.1:3000/api/send-nudge');
+      try {
+        await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'fcmToken': targetUser!.fcmToken,
+            'senderName': senderUser?.displayName ?? 'Someone',
+            'amount': amount,
+          }),
+        );
+      } catch (e) {
+        // We catch here so the base nudge still completes in Firestore even if the server is down
+        print('Error sending FCM push HTTP request: $e');
+      }
+    }
   }
 
   /// Get stream of notifications for a user

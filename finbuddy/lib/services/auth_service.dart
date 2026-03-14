@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -44,6 +45,14 @@ class AuthService extends ChangeNotifier {
     final DocumentReference userDoc = _firestore.collection('users').doc(user.uid);
     final DocumentSnapshot docSnapshot = await userDoc.get();
 
+    String? token;
+    try {
+      await FirebaseMessaging.instance.requestPermission();
+      token = await FirebaseMessaging.instance.getToken();
+    } catch (e) {
+      debugPrint("Error fetching FCM token: $e");
+    }
+
     if (!docSnapshot.exists) {
       // First time login - create user document
       final newUser = UserModel(
@@ -53,17 +62,26 @@ class AuthService extends ChangeNotifier {
         photoUrl: user.photoURL ?? '',
         createdAt: DateTime.now(),
         lastLogin: DateTime.now(),
+        fcmToken: token,
       );
 
       await userDoc.set(newUser.toMap());
       _currentUserData = newUser;
     } else {
-      // Update last login
+      // Update last login and FCM token
       await userDoc.update({
         'lastLogin': FieldValue.serverTimestamp(),
+        if (token != null) 'fcmToken': token,
       });
-      _currentUserData = UserModel.fromMap(docSnapshot.data() as Map<String, dynamic>, docSnapshot.id);
+      final data = docSnapshot.data() as Map<String, dynamic>;
+      if (token != null) data['fcmToken'] = token;
+      _currentUserData = UserModel.fromMap(data, docSnapshot.id);
     }
+
+    // Listen for FCM token refreshes
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      userDoc.update({'fcmToken': newToken});
+    });
   }
 
   Future<void> refreshUserData() async {
