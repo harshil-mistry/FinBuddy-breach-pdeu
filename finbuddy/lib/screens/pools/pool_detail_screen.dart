@@ -15,6 +15,7 @@ import 'add_expense_sheet.dart';
 import 'settle_up_screen.dart';
 import 'expense_detail_sheet.dart';
 import '../../utils/debt_simplifier.dart';
+import '../../services/pool_pdf_service.dart';
 
 class PoolDetailScreen extends StatefulWidget {
   final String poolId;
@@ -652,6 +653,23 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
                   );
                 },
                 icon: const Icon(Icons.payments_rounded, color: AppColors.successGreen),
+              ),
+              IconButton(
+                tooltip: 'Export to PDF',
+                onPressed: () async {
+                  // We need the latest list of expenses to generate the report
+                  final allExpenses = await _firestoreService
+                      .getSharedExpenses(widget.poolId)
+                      .first;
+                  if (!context.mounted) return;
+                  await PoolPdfService.exportPoolPdf(
+                    context: context,
+                    pool: pool,
+                    expenses: allExpenses,
+                    memberNames: _memberNames,
+                  );
+                },
+                icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.errorRed),
               ),
               Stack(
                 alignment: Alignment.topRight,
