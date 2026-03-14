@@ -6,6 +6,9 @@ import '../../services/firestore_service.dart';
 import '../../theme/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import 'invite_screen.dart';
 import 'add_expense_sheet.dart';
@@ -31,13 +34,122 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
   DateTime? _filterFromDate;
   DateTime? _filterToDate;
 
-  void _showAddExpenseSheet(BuildContext context, PoolModel pool) {
+  void _showAddExpenseSheet(BuildContext context, PoolModel pool, {double? prefilledAmount, String? prefilledDescription}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AddSharedExpenseSheet(pool: pool),
+      builder: (_) => AddSharedExpenseSheet(
+        pool: pool,
+        prefilledAmount: prefilledAmount,
+        prefilledDescription: prefilledDescription,
+      ),
     );
+  }
+
+  /// Pick or capture a receipt image and send to backend for AI scanning
+  Future<void> _scanReceipt(BuildContext context, PoolModel pool) async {
+    // Let user choose camera or gallery
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Scan Receipt', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkBlue)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryBlue),
+                title: const Text('Take Photo'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AppColors.primaryBlue),
+                title: const Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
+    if (pickedFile == null) return;
+
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppColors.primaryBlue),
+                SizedBox(height: 16),
+                Text('Scanning receipt...', style: TextStyle(fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // TODO: Replace with your actual server IP/URL
+      const serverUrl = 'http://127.0.0.1:3000/api/scan-receipt';
+
+      final request = http.MultipartRequest('POST', Uri.parse(serverUrl));
+      request.files.add(await http.MultipartFile.fromPath('image', pickedFile.path));
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // Dismiss loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == true) {
+          final amount = (data['amount'] as num).toDouble();
+          final description = data['description'] as String;
+
+          if (mounted) {
+            _showAddExpenseSheet(context, pool, prefilledAmount: amount, prefilledDescription: description);
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not read receipt. Please try again or add manually.')),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Server error: ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      // Dismiss loading dialog if still open
+      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to scan receipt: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _loadMemberNames(List<String> members, [List<String>? joinRequests]) async {
@@ -736,11 +848,24 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
               ),
             ],
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            backgroundColor: AppColors.primaryBlue,
-            onPressed: () => _showAddExpenseSheet(context, pool),
-            icon: const Icon(Icons.add_rounded, color: AppColors.pureWhite),
-            label: const Text('Add Expense', style: TextStyle(color: AppColors.pureWhite, fontWeight: FontWeight.bold)),
+          floatingActionButton: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FloatingActionButton(
+                heroTag: 'scan_receipt',
+                backgroundColor: AppColors.pureWhite,
+                onPressed: () => _scanReceipt(context, pool),
+                child: const Icon(Icons.receipt_long_rounded, color: AppColors.primaryBlue),
+              ),
+              const SizedBox(width: 12),
+              FloatingActionButton.extended(
+                heroTag: 'add_expense',
+                backgroundColor: AppColors.primaryBlue,
+                onPressed: () => _showAddExpenseSheet(context, pool),
+                icon: const Icon(Icons.add_rounded, color: AppColors.pureWhite),
+                label: const Text('Add Expense', style: TextStyle(color: AppColors.pureWhite, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
         );
       },

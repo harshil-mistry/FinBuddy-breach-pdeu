@@ -1,0 +1,16 @@
+{
+  "name": "finbuddy-receipt-server",
+  "version": "1.0.0",
+  "description": "Express server for AI-powered receipt scanning using Nvidia NIM",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "dotenv": "^16.4.5"
+  }
+}

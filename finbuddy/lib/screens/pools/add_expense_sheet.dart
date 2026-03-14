@@ -8,8 +8,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class AddSharedExpenseSheet extends StatefulWidget {
   final PoolModel pool;
+  final double? prefilledAmount;
+  final String? prefilledDescription;
 
-  const AddSharedExpenseSheet({super.key, required this.pool});
+  const AddSharedExpenseSheet({
+    super.key,
+    required this.pool,
+    this.prefilledAmount,
+    this.prefilledDescription,
+  });
 
   @override
   State<AddSharedExpenseSheet> createState() => _AddSharedExpenseSheetState();
@@ -39,6 +46,14 @@ class _AddSharedExpenseSheetState extends State<AddSharedExpenseSheet> {
   void initState() {
     super.initState();
     _paidByUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    
+    // Pre-fill from AI scan if provided
+    if (widget.prefilledDescription != null) {
+      _descController.text = widget.prefilledDescription!;
+    }
+    if (widget.prefilledAmount != null) {
+      _amountController.text = widget.prefilledAmount!.toStringAsFixed(2);
+    }
     
     // By default, select all participants
     _selectedParticipants = Set.from(widget.pool.members);
