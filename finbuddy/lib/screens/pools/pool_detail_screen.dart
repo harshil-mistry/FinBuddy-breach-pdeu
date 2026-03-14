@@ -107,7 +107,7 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
 
     try {
       // TODO: Replace with your actual server IP/URL
-      const serverUrl = 'http://127.0.0.1:3000/api/scan-receipt';
+      const serverUrl = 'https://finbuddy-breach-pdeu.onrender.com/api/scan-receipt';
 
       final request = http.MultipartRequest('POST', Uri.parse(serverUrl));
       request.files.add(await http.MultipartFile.fromPath('image', pickedFile.path));

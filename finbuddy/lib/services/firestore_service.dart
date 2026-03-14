@@ -317,7 +317,7 @@ class FirestoreService {
     final senderUser = await getUser(fromUid);
 
     if (targetUser?.fcmToken != null) {
-      final url = Uri.parse('http://127.0.0.1:3000/api/send-nudge');
+      final url = Uri.parse('https://finbuddy-breach-pdeu.onrender.com/api/send-nudge');
       try {
         await http.post(
           url,

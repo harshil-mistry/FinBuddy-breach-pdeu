@@ -8,6 +8,7 @@ import 'services/auth_service.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/navigation/main_navigation.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +32,7 @@ class FinBuddyApp extends StatelessWidget {
       title: 'FinBuddy',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const AuthenticationWrapper(),
+      home: const SplashScreen(),
     );
   }
 }
