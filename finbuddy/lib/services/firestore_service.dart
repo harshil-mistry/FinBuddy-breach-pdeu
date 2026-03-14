@@ -204,4 +204,45 @@ class FirestoreService {
       return list;
     });
   }
+
+  /// Delete a shared expense and subtract from pool total
+  Future<void> deleteSharedExpense(SharedExpenseModel expense) async {
+    final batch = _firestore.batch();
+
+    // Delete the expense doc
+    final expenseRef = _firestore.collection('shared_expenses').doc(expense.id);
+    batch.delete(expenseRef);
+
+    // Subtract the amount from pool total (won't go below 0)
+    final poolRef = _firestore.collection('pools').doc(expense.poolId);
+    batch.update(poolRef, {
+      'totalExpenses': FieldValue.increment(-expense.amount),
+    });
+
+    await batch.commit();
+  }
+
+  /// Leave a pool — removes the user from members list. Existing debts stay intact.
+  Future<void> leavePool(String poolId, String uid) async {
+    await _firestore.collection('pools').doc(poolId).update({
+      'members': FieldValue.arrayRemove([uid]),
+    });
+  }
+
+  /// Delete an entire pool and all its shared expenses (admin only).
+  Future<void> deletePool(String poolId) async {
+    // Delete all shared expenses for this pool first
+    final expensesSnapshot = await _firestore
+        .collection('shared_expenses')
+        .where('poolId', isEqualTo: poolId)
+        .get();
+
+    final batch = _firestore.batch();
+    for (final doc in expensesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(_firestore.collection('pools').doc(poolId));
+    await batch.commit();
+  }
 }
+

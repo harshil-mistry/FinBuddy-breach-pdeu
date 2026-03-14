@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../../models/pool_model.dart';
 import '../../models/shared_expense_model.dart';
 import '../../models/user_model.dart';
+import '../../models/transaction_model.dart';
 import '../../services/firestore_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/debt_simplifier.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 class SettleUpScreen extends StatefulWidget {
   final PoolModel pool;
@@ -134,24 +136,11 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                         final String upiId = _memberUpiIds[t.to] ?? '';
                         final bool canPayViaUpi = isMePaying && upiId.isNotEmpty;
 
+                        final bool canSettle = isMePaying || t.to == FirebaseAuth.instance.currentUser?.uid;
+
                         return GestureDetector(
-                          onTap: canPayViaUpi 
-                              ? () async {
-                                  final uri = Uri.parse('upi://pay?pa=$upiId&am=${t.amount.toStringAsFixed(2)}&cu=INR&tn=FinBuddy%20Settlement');
-                                  try {
-                                    final launched = await launchUrl(
-                                      uri,
-                                      mode: LaunchMode.externalApplication,
-                                    );
-                                    if (!launched && mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No UPI app found on your device.')));
-                                    }
-                                  } catch (e) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not launch UPI app: $e')));
-                                    }
-                                  }
-                                }
+                          onTap: canSettle
+                              ? () => _showSettlementOptions(t, canPayViaUpi, upiId)
                               : null,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -160,8 +149,8 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                               color: AppColors.pureWhite,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: canPayViaUpi ? AppColors.primaryBlue : AppColors.borderLight,
-                                width: canPayViaUpi ? 2 : 1,
+                                color: canSettle ? AppColors.primaryBlue : AppColors.borderLight,
+                                width: canSettle ? 2 : 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
@@ -216,5 +205,169 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
               },
             ),
     );
+  }
+
+  void _showSettlementOptions(SettlementTransfer t, bool canPayViaUpi, String upiId) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Settle Debt',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontSize: 20,
+                        color: AppColors.darkBlue,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '${_memberNames[t.to] ?? 'Unknown'} is owed ₹${t.amount.toStringAsFixed(0)}',
+                  style: const TextStyle(fontSize: 16, color: AppColors.textDark),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                if (canPayViaUpi) ...[
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _launchUpi(t, upiId);
+                    },
+                    icon: const Icon(Icons.send_rounded),
+                    label: const Text('Pay via UPI App'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: AppColors.pureWhite,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _recordManualSettlement(t);
+                  },
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label: const Text('Mark as Settled (Cash)'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: AppColors.successGreen,
+                    foregroundColor: AppColors.pureWhite,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static const platform = MethodChannel('com.breachpdeu.finbuddy/upi');
+
+  void _launchUpi(SettlementTransfer t, String upiId) async {
+    final payeeName = Uri.encodeComponent(_memberNames[t.to] ?? 'FinBuddy User');
+    final trId = 'FINB${DateTime.now().millisecondsSinceEpoch}';
+    final uriStr = 'upi://pay?pa=$upiId&pn=$payeeName&tr=$trId&am=${t.amount.toStringAsFixed(2)}&cu=INR&tn=FinBuddy%20Settlement';
+    try {
+      final String result = await platform.invokeMethod('startUpiPayment', {'uri': uriStr});
+      
+      if (result == 'canceled') {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment cancelled or no response.')));
+        }
+        return;
+      }
+
+      if (result.contains('success') || result.contains('status=success') || result.contains('txn')) {
+        _recordManualSettlement(t);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment did not succeed: $result')));
+        }
+      }
+    } on PlatformException catch (e) {
+      if (e.code == 'NO_APP_FOUND') {
+        // Fallback to url_launcher if the platform channel fails
+        final uri = Uri.parse(uriStr);
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not launch UPI app: ${e.message}')));
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.message}')));
+        }
+      }
+    }
+  }
+
+  void _recordManualSettlement(SettlementTransfer t) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final firestore = FirestoreService();
+      // 1. Add shared expense where 100% is split to the receiver, paid by the sender.
+      // This zeroes out the debt automatically via the algorithm calculation.
+      final settlementExpense = SharedExpenseModel(
+        id: '', // FirestoreService handles doc generation
+        poolId: widget.pool.id,
+        description: 'Debt Settlement',
+        amount: t.amount,
+        paidBy: t.from,
+        date: DateTime.now(),
+        splits: {t.to: t.amount},
+      );
+      await firestore.addSharedExpense(settlementExpense);
+
+      // 2. Add personal transaction for the current user
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid != null && (t.from == currentUid || t.to == currentUid)) {
+        final isPayer = t.from == currentUid;
+        final userTransaction = TransactionModel(
+          id: '',
+          uid: currentUid,
+          description: isPayer 
+              ? 'Settled debt to ${_memberNames[t.to] ?? 'Unknown'}'
+              : 'Received settlement from ${_memberNames[t.from] ?? 'Unknown'}',
+          amount: t.amount,
+          category: 'Transfers',
+          tag: 'Need',
+          type: isPayer ? 'expense' : 'income',
+          date: DateTime.now(),
+        );
+        await firestore.addTransaction(userTransaction);
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debt successfully settled!'), backgroundColor: AppColors.successGreen),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.errorRed),
+        );
+      }
+    }
   }
 }
