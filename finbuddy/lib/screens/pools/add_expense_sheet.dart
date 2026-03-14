@@ -12,6 +12,10 @@ class AddSharedExpenseSheet extends StatefulWidget {
   final String? prefilledDescription;
   /// If editing, pass the existing expense here.
   final SharedExpenseModel? existingExpense;
+  /// Pre-selected participants (from voice agent)
+  final Set<String>? prefilledParticipants;
+  /// Pre-selected payer uid (from voice agent)
+  final String? prefilledPaidByUid;
 
   const AddSharedExpenseSheet({
     super.key,
@@ -19,6 +23,8 @@ class AddSharedExpenseSheet extends StatefulWidget {
     this.prefilledAmount,
     this.prefilledDescription,
     this.existingExpense,
+    this.prefilledParticipants,
+    this.prefilledPaidByUid,
   });
 
   @override
@@ -49,9 +55,10 @@ class _AddSharedExpenseSheetState extends State<AddSharedExpenseSheet> {
     final ex = widget.existingExpense;
 
     _paidByUid = ex?.paidBy ??
+        widget.prefilledPaidByUid ??
         FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    // Prefill from existing expense
+    // Prefill from existing expense or voice agent
     _descController.text = ex?.description ??
         widget.prefilledDescription ?? '';
 
@@ -62,7 +69,10 @@ class _AddSharedExpenseSheetState extends State<AddSharedExpenseSheet> {
       if (widget.prefilledAmount != null) {
         _amountController.text = widget.prefilledAmount!.toStringAsFixed(2);
       }
-      _selectedParticipants = Set.from(widget.pool.members);
+      // Use voice-prefilled participants, else select all
+      _selectedParticipants = widget.prefilledParticipants != null && widget.prefilledParticipants!.isNotEmpty
+          ? Set.from(widget.prefilledParticipants!)
+          : Set.from(widget.pool.members);
     }
 
     for (String uid in widget.pool.members) {

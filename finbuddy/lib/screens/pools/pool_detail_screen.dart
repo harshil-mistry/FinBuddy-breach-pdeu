@@ -16,6 +16,7 @@ import 'settle_up_screen.dart';
 import 'expense_detail_sheet.dart';
 import '../../utils/debt_simplifier.dart';
 import '../../services/pool_pdf_service.dart';
+import 'voice_recorder_sheet.dart';
 
 class PoolDetailScreen extends StatefulWidget {
   final String poolId;
@@ -815,7 +816,14 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
                 onPressed: () => _scanReceipt(context, pool),
                 child: const Icon(Icons.receipt_long_rounded, color: AppColors.primaryBlue),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
+              FloatingActionButton(
+                heroTag: 'voice_expense',
+                backgroundColor: AppColors.pureWhite,
+                onPressed: () => showVoiceRecorderSheet(context, pool),
+                child: const Icon(Icons.mic_rounded, color: AppColors.errorRed),
+              ),
+              const SizedBox(width: 10),
               FloatingActionButton.extended(
                 heroTag: 'add_expense',
                 backgroundColor: AppColors.primaryBlue,

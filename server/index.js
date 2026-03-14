@@ -276,3 +276,171 @@ app.post("/api/send-expense-notification", async (req, res) => {
         return res.status(500).json({ status: false, error: err.message });
     }
 });
+
+// --- POST /api/voice-expense ---
+// Receives: multipart audio file + "members" JSON string [{ uid, name }]
+// Returns:  { status: true, description, amount, participantUids }
+//        OR { status: false, error }
+app.post("/api/voice-expense", upload.single("audio"), async (req, res) => {
+    const audioPath = req.file?.path;
+    try {
+        // ── Validate request ──────────────────────────────────────
+        if (!req.file) {
+            return res.status(400).json({ status: false, error: "No audio file uploaded." });
+        }
+
+        let members = [];
+        try {
+            members = JSON.parse(req.body.members || "[]");
+        } catch (_) {
+            return res.status(400).json({ status: false, error: "Invalid members JSON." });
+        }
+
+        if (!Array.isArray(members) || members.length === 0) {
+            return res.status(400).json({ status: false, error: "members list is empty or invalid." });
+        }
+
+        // ── Deepgram STT ──────────────────────────────────────────
+        const deepgramKey = process.env.DEEPGRAM_API_KEY;
+        if (!deepgramKey) {
+            return res.status(500).json({ status: false, error: "DEEPGRAM_API_KEY not configured." });
+        }
+
+        const audioBuffer = fs.readFileSync(audioPath);
+        const mimeType = req.file.mimetype || "audio/m4a";
+        console.log(`🎙️ Voice expense: audio ${req.file.size} bytes, ${members.length} members`);
+
+        // Call Deepgram REST API
+        const dgResponse = await fetch("https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en", {
+            method: "POST",
+            headers: {
+                "Authorization": `Token ${deepgramKey}`,
+                "Content-Type": mimeType,
+            },
+            body: audioBuffer,
+        });
+
+        if (!dgResponse.ok) {
+            const dgErr = await dgResponse.text();
+            console.error("❌ Deepgram error:", dgErr);
+            return res.status(502).json({ status: false, error: "Speech-to-text service error. Please try again." });
+        }
+
+        const dgData = await dgResponse.json();
+        const transcript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim();
+
+        if (!transcript || transcript.length < 3) {
+            return res.json({ status: false, error: "Could not understand the recording. Please speak clearly and try again." });
+        }
+        console.log(`📝 Transcript: "${transcript}"`);
+
+        // ── Nvidia NIM LLM — Mixtral 8x22B (~120B) ────────────────
+        const nimKey = process.env.NVIDIA_API_KEY;
+        if (!nimKey) {
+            return res.status(500).json({ status: false, error: "NVIDIA_API_KEY not configured." });
+        }
+
+        const membersStr = members.map(m => `{ "uid": "${m.uid}", "name": "${m.name}" }`).join(", ");
+        const allUids = members.map(m => m.uid);
+
+        const systemPrompt = `You are a precise expense-parsing assistant for a bill-splitting app.
+
+Pool members: [${membersStr}]
+
+Your task: Parse the user's spoken transcript and extract expense details.
+
+Rules:
+1. Return ONLY a valid JSON object — no markdown, no explanation, no extra text.
+2. "description": a short title (2-4 words) for the expense. Capitalize first letter.
+3. "amount": a number (no currency symbol). If not mentioned, use null.
+4. "participantUids": array of uid strings from the members list who should share the expense.
+   - Match names mentioned in the transcript to members by name (case-insensitive, partial match ok).
+   - If no specific names are mentioned, or the word "everyone"/"all" is used, include ALL member uids.
+   - If you cannot identify any member names, include ALL member uids.
+5. "paidByUid": uid of the person who paid. Match "I" to the first member, or match a name. If unclear, use null.
+
+Output format (strict):
+{"description":"<string>","amount":<number or null>,"participantUids":[<uids>],"paidByUid":<uid or null>}`;
+
+        const userMessage = `Transcript: "${transcript}"`;
+
+        const nimResponse = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${nimKey}`,
+            },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userMessage },
+                ],
+                max_tokens: 256,
+                temperature: 0.1,
+            }),
+        });
+
+        if (!nimResponse.ok) {
+            const nimErr = await nimResponse.text();
+            console.error("❌ NIM LLM error:", nimErr);
+            return res.status(502).json({ status: false, error: "AI parsing failed. Please try again." });
+        }
+
+        const nimData = await nimResponse.json();
+        const rawText = nimData?.choices?.[0]?.message?.content?.trim() ?? "";
+        console.log(`🤖 LLM raw response: ${rawText}`);
+
+        // ── Parse LLM output ──────────────────────────────────────
+        let parsed;
+        try {
+            // Strip accidental markdown code fences
+            const cleaned = rawText.replace(/```json|```/g, "").trim();
+            // Extract first JSON object from response (handles extra text)
+            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error("No JSON found in response");
+            parsed = JSON.parse(jsonMatch[0]);
+        } catch (parseErr) {
+            console.error("❌ JSON parse error:", parseErr.message, "| raw:", rawText);
+            // Fallback: return transcript as description with no amount
+            return res.json({
+                status: true,
+                description: transcript.substring(0, 50),
+                amount: null,
+                participantUids: allUids,
+                paidByUid: null,
+                transcript,
+            });
+        }
+
+        // ── Validate & sanitize parsed fields ─────────────────────
+        const description = typeof parsed.description === "string" && parsed.description.trim().length > 0
+            ? parsed.description.trim()
+            : transcript.substring(0, 50);
+
+        const amount = typeof parsed.amount === "number" && parsed.amount > 0
+            ? parsed.amount
+            : null;
+
+        // Ensure all returned uids actually exist in the members list
+        let participantUids = Array.isArray(parsed.participantUids)
+            ? parsed.participantUids.filter(uid => allUids.includes(uid))
+            : [];
+        if (participantUids.length === 0) participantUids = allUids; // fallback to all
+
+        const paidByUid = allUids.includes(parsed.paidByUid) ? parsed.paidByUid : null;
+
+        const result = { status: true, description, amount, participantUids, paidByUid, transcript };
+        console.log("✅ Voice expense result:", JSON.stringify(result));
+        return res.json(result);
+
+    } catch (err) {
+        console.error("💥 Voice expense server error:", err);
+        return res.status(500).json({ status: false, error: "Internal server error. Please try again." });
+    } finally {
+        // Always clean up temp audio file
+        if (audioPath && fs.existsSync(audioPath)) {
+            try { fs.unlinkSync(audioPath); } catch (_) { }
+        }
+    }
+});
