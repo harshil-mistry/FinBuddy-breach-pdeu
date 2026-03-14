@@ -118,6 +118,14 @@ class FirestoreService {
     await _firestore.collection('transactions').doc(transactionId).delete();
   }
 
+  /// Update a personal transaction
+  Future<void> updateTransaction(TransactionModel transaction) async {
+    await _firestore
+        .collection('transactions')
+        .doc(transaction.id)
+        .update(transaction.toMap());
+  }
+
   // ─── Pool Operations ───────────────────────────────────────────
 
   /// Create a new pool
@@ -298,6 +306,26 @@ class FirestoreService {
     batch.update(poolRef, {
       'totalExpenses': FieldValue.increment(-expense.amount),
     });
+
+    await batch.commit();
+  }
+
+  /// Update a shared expense and adjust pool total
+  Future<void> updateSharedExpense(SharedExpenseModel newExpense, double oldAmount) async {
+    final batch = _firestore.batch();
+    
+    // Update the expense doc
+    final expenseRef = _firestore.collection('shared_expenses').doc(newExpense.id);
+    batch.update(expenseRef, newExpense.toMap());
+
+    // Adjust the pool's total expenses by the difference
+    final difference = newExpense.amount - oldAmount;
+    if (difference != 0) {
+      final poolRef = _firestore.collection('pools').doc(newExpense.poolId);
+      batch.update(poolRef, {
+        'totalExpenses': FieldValue.increment(difference),
+      });
+    }
 
     await batch.commit();
   }

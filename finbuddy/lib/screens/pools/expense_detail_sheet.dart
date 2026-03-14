@@ -5,6 +5,7 @@ import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
 import '../../theme/app_colors.dart';
 import 'package:intl/intl.dart';
+import 'add_expense_sheet.dart';
 
 class ExpenseDetailSheet extends StatefulWidget {
   final SharedExpenseModel expense;
@@ -184,22 +185,59 @@ class _ExpenseDetailSheetState extends State<ExpenseDetailSheet> {
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               backgroundColor: AppColors.primaryBlue,
                               foregroundColor: AppColors.pureWhite,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
                             ),
-                            child: const Text('Close', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            child: const Text('Close',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
+                        // Edit button
+                        ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(context); // close detail sheet
+                            await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => AddSharedExpenseSheet(
+                                pool: widget.pool,
+                                existingExpense: widget.expense,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 18),
+                            backgroundColor:
+                                AppColors.primaryBlue.withAlpha(20),
+                            foregroundColor: AppColors.primaryBlue,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                  color: AppColors.primaryBlue.withAlpha(80)),
+                            ),
+                          ),
+                          child: const Icon(Icons.edit_rounded),
+                        ),
+                        const SizedBox(width: 10),
+                        // Delete button
                         ElevatedButton(
                           onPressed: () => _confirmDelete(context),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                            backgroundColor: AppColors.errorRed.withAlpha(20),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 18),
+                            backgroundColor:
+                                AppColors.errorRed.withAlpha(20),
                             foregroundColor: AppColors.errorRed,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(color: AppColors.errorRed.withAlpha(80)),
+                              side: BorderSide(
+                                  color: AppColors.errorRed.withAlpha(80)),
                             ),
                           ),
                           child: const Icon(Icons.delete_outline_rounded),

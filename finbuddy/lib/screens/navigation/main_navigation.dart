@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../home/home_screen.dart';
-import '../stats/stats_screen.dart';
 import '../pools/pools_screen.dart';
 import '../recurring/recurring_screen.dart';
 import '../history/history_screen.dart';
@@ -18,7 +17,6 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
-    StatsScreen(),
     PoolsScreen(),
     RecurringScreen(),
     HistoryScreen(),
@@ -49,10 +47,9 @@ class _MainNavigationState extends State<MainNavigation> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(0, Icons.home_rounded, 'Home'),
-                _buildNavItem(1, Icons.bar_chart_rounded, 'Stats'),
-                _buildNavItem(2, Icons.group_rounded, 'Pools'),
-                _buildNavItem(3, Icons.repeat_rounded, 'Recurring'),
-                _buildNavItem(4, Icons.history_rounded, 'History'),
+                _buildNavItem(1, Icons.group_rounded, 'Pools'),
+                _buildNavItem(2, Icons.repeat_rounded, 'Recurring'),
+                _buildNavItem(3, Icons.history_rounded, 'History'),
               ],
             ),
           ),
