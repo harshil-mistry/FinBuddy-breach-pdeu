@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:intl/intl.dart';
 import '../../models/pool_model.dart';
 import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
@@ -39,7 +38,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
   String? _transcriptPreview;
 
   // ─── Recording ────────────────────────────────────────────────────────────
-  final AudioRecorder _recorder = AudioRecorder();
+  final Record _recorder = Record();
   String? _audioPath;
   Timer? _timer;
   int _secondsElapsed = 0;
@@ -98,8 +97,10 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
       final path = '${dir.path}/voice_expense_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
       await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 16000),
         path: path,
+        encoder:      AudioEncoder.aacLc,
+        bitRate:      64000,
+        samplingRate: 16000,
       );
 
       _audioPath = path;
@@ -126,9 +127,9 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
     setState(() => _phase = _RecordPhase.processing);
 
     try {
-      final path = await _recorder.stop();
+      await _recorder.stop();
+      final path = _audioPath;
       if (path == null || path.isEmpty) throw Exception('Recording file not found.');
-      _audioPath = path;
       await _sendToBackend(path);
     } catch (e) {
       if (mounted) setState(() {
