@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/transaction_model.dart';
 import '../models/user_model.dart';
+import '../models/pool_model.dart';
+import '../models/shared_expense_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -98,5 +100,95 @@ class FirestoreService {
   /// Delete a transaction
   Future<void> deleteTransaction(String transactionId) async {
     await _firestore.collection('transactions').doc(transactionId).delete();
+  }
+
+  // ─── Pool Operations ───────────────────────────────────────────
+
+  /// Create a new pool
+  Future<String> createPool(PoolModel pool) async {
+    final docRef = await _firestore.collection('pools').add(pool.toMap());
+    return docRef.id;
+  }
+
+  /// Join a pool using an invite code
+  Future<bool> joinPool(String inviteCode, String uid) async {
+    final querySnapshot = await _firestore
+        .collection('pools')
+        .where('inviteCode', isEqualTo: inviteCode)
+        .get();
+
+    if (querySnapshot.docs.isEmpty) return false;
+
+    final poolDoc = querySnapshot.docs.first;
+    List<String> members = List<String>.from(poolDoc.data()['members'] ?? []);
+
+    if (!members.contains(uid)) {
+      members.add(uid);
+      await poolDoc.reference.update({'members': members});
+    }
+
+    return true; // Successfully joined
+  }
+
+  /// Stream pools that the user is a member of
+  Stream<List<PoolModel>> getPools(String uid) {
+    return _firestore
+        .collection('pools')
+        .where('members', arrayContains: uid)
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => PoolModel.fromMap(doc.data(), doc.id))
+          .toList();
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
+  }
+
+  /// Get a specific pool by ID
+  Stream<PoolModel?> getPoolStream(String poolId) {
+    return _firestore.collection('pools').doc(poolId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return PoolModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    });
+  }
+  
+  Future<PoolModel?> getPoolById(String poolId) async {
+    final doc = await _firestore.collection('pools').doc(poolId).get();
+    if (!doc.exists) return null;
+    return PoolModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  /// Add a shared expense and update pool total
+  Future<void> addSharedExpense(SharedExpenseModel expense) async {
+    final batch = _firestore.batch();
+    
+    // Add the expense
+    final expenseRef = _firestore.collection('shared_expenses').doc();
+    batch.set(expenseRef, expense.toMap());
+
+    // Update the pool's total expenses
+    final poolRef = _firestore.collection('pools').doc(expense.poolId);
+    batch.update(poolRef, {
+      'totalExpenses': FieldValue.increment(expense.amount),
+    });
+
+    await batch.commit();
+  }
+
+  /// Stream shared expenses for a specific pool
+  Stream<List<SharedExpenseModel>> getSharedExpenses(String poolId) {
+    return _firestore
+        .collection('shared_expenses')
+        .where('poolId', isEqualTo: poolId)
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => SharedExpenseModel.fromMap(doc.data(), doc.id))
+          .toList();
+      // Client-side sort to avoid composite index requirements
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
+    });
   }
 }
