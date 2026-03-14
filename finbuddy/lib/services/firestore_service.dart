@@ -7,18 +7,31 @@ import '../models/shared_expense_model.dart';
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ─── User Operations ───────────────────────────────────────────
-
-  /// Update user document after onboarding is complete
   Future<void> completeOnboarding({
     required String uid,
+    required String displayName,
+    required String upiId,
     required List<RecurringIncome> incomes,
     required List<RecurringExpense> expenses,
   }) async {
     await _firestore.collection('users').doc(uid).update({
+      'displayName': displayName,
+      'upiId': upiId,
       'isSetupComplete': true,
       'recurringIncomes': incomes.map((e) => e.toMap()).toList(),
       'recurringExpenses': expenses.map((e) => e.toMap()).toList(),
+    });
+  }
+
+  /// Update user profile
+  Future<void> updateUserProfile({
+    required String uid,
+    required String displayName,
+    required String upiId,
+  }) async {
+    await _firestore.collection('users').doc(uid).update({
+      'displayName': displayName,
+      'upiId': upiId,
     });
   }
 

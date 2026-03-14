@@ -50,11 +50,11 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              // Logo Placeholder / Brand Name
-              Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 80,
-                color: AppColors.primaryBlue,
+              // App Logo
+              Image.asset(
+                'assets/logo.png',
+                height: 120, // Adjust height to fit nicely based on your preference
+                fit: BoxFit.contain,
               ),
               const SizedBox(height: 24),
               Text(

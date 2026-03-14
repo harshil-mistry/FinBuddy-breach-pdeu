@@ -5,6 +5,7 @@ import '../../theme/app_colors.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../models/transaction_model.dart';
+import '../profile_screen.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -43,16 +44,24 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 children: [
                   // Avatar
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: AppColors.lightBlue,
-                    backgroundImage: user?.photoURL != null
-                        ? NetworkImage(user!.photoURL!)
-                        : null,
-                    child: user?.photoURL == null
-                        ? const Icon(Icons.person_rounded,
-                            color: AppColors.primaryBlue)
-                        : null,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: AppColors.lightBlue,
+                      backgroundImage: user?.photoURL != null
+                          ? NetworkImage(user!.photoURL!)
+                          : null,
+                      child: user?.photoURL == null
+                          ? const Icon(Icons.person_rounded,
+                              color: AppColors.primaryBlue)
+                          : null,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Column(

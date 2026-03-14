@@ -5,6 +5,8 @@ import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/debt_simplifier.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SettleUpScreen extends StatefulWidget {
   final PoolModel pool;
@@ -17,6 +19,7 @@ class SettleUpScreen extends StatefulWidget {
 
 class _SettleUpScreenState extends State<SettleUpScreen> {
   Map<String, String> _memberNames = {};
+  Map<String, String> _memberUpiIds = {};
   bool _isLoadingMembers = true;
 
   @override
@@ -33,6 +36,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
           _memberNames[uid] = user != null && user.displayName.isNotEmpty 
               ? user.displayName 
               : 'User ($uid)';
+          _memberUpiIds[uid] = user?.upiId ?? '';
         });
       }
     }
@@ -126,24 +130,50 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                       ),
                       const SizedBox(height: 16),
                       ...transfers.map((t) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: AppColors.pureWhite,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.borderLight),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.darkBlue.withAlpha(10),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              )
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
+                        final bool isMePaying = t.from == FirebaseAuth.instance.currentUser?.uid;
+                        final String upiId = _memberUpiIds[t.to] ?? '';
+                        final bool canPayViaUpi = isMePaying && upiId.isNotEmpty;
+
+                        return GestureDetector(
+                          onTap: canPayViaUpi 
+                              ? () async {
+                                  final uri = Uri.parse('upi://pay?pa=$upiId&am=${t.amount.toStringAsFixed(2)}&cu=INR&tn=FinBuddy%20Settlement');
+                                  try {
+                                    final launched = await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                    if (!launched && mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No UPI app found on your device.')));
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not launch UPI app: $e')));
+                                    }
+                                  }
+                                }
+                              : null,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: AppColors.pureWhite,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: canPayViaUpi ? AppColors.primaryBlue : AppColors.borderLight,
+                                width: canPayViaUpi ? 2 : 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.darkBlue.withAlpha(10),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
                               Expanded(
                                 child: Text(
                                   _memberNames[t.from] ?? 'Unknown',
@@ -177,8 +207,9 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                               ),
                             ],
                           ),
-                        );
-                      }),
+                        ),
+                      );
+                    }),
                     ],
                   ),
                 );

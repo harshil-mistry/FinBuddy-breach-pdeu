@@ -5,6 +5,7 @@ import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/day_selector.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -16,6 +17,9 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _upiIdController = TextEditingController();
 
   // ─── Income Form State ──────────────────────────────────────────
   final List<Map<String, dynamic>> _incomes = [];
@@ -33,8 +37,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Prefill the display name with current value
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && user.displayName != null) {
+      _nameController.text = user.displayName!;
+    }
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
+    _nameController.dispose();
+    _upiIdController.dispose();
     _incomeSourceController.dispose();
     _incomeAmountController.dispose();
     _expenseNameController.dispose();
@@ -130,6 +146,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       await firestoreService.completeOnboarding(
         uid: uid,
+        displayName: _nameController.text.trim(),
+        upiId: _upiIdController.text.trim(),
         incomes: recurringIncomes,
         expenses: recurringExpenses,
       );
@@ -240,6 +258,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             textAlign: TextAlign.center,
           ),
           const Spacer(),
+          TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              hintText: 'Display Name',
+              prefixIcon: const Icon(Icons.person_rounded, color: AppColors.primaryBlue),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.borderLight),
+              ),
+              filled: true,
+              fillColor: AppColors.pureWhite,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _upiIdController,
+            decoration: InputDecoration(
+              hintText: 'Your UPI ID (Optional)',
+              prefixIcon: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryBlue),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.borderLight),
+              ),
+              filled: true,
+              fillColor: AppColors.pureWhite,
+            ),
+          ),
+          const SizedBox(height: 24),
           _buildBottomButton('Let\'s Go!', _nextPage),
           const SizedBox(height: 32),
         ],
