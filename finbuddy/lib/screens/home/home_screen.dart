@@ -6,7 +6,9 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../models/transaction_model.dart';
 import '../profile_screen.dart';
+import 'notifications_screen.dart';
 import 'package:intl/intl.dart';
+import '../../models/notification_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -86,6 +88,50 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   const Spacer(),
+                  // Notifications Bell
+                  if (user != null)
+                    StreamBuilder<List<NotificationModel>>(
+                      stream: _firestoreService.getNotifications(user.uid),
+                      builder: (context, snapshot) {
+                        final unreadCount = snapshot.hasData
+                            ? snapshot.data!.where((n) => !n.isRead).length
+                            : 0;
+
+                        return Stack(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.notifications_none_rounded),
+                              color: AppColors.textDark,
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                                );
+                              },
+                              tooltip: 'Notifications',
+                            ),
+                            if (unreadCount > 0)
+                              Positioned(
+                                right: 12,
+                                top: 12,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.errorRed,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 8,
+                                    minHeight: 8,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  
+                  // Sign Out
                   IconButton(
                     icon: const Icon(Icons.logout_rounded),
                     color: AppColors.textLight,

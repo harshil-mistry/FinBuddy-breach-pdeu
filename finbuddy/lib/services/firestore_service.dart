@@ -3,6 +3,7 @@ import '../models/transaction_model.dart';
 import '../models/user_model.dart';
 import '../models/pool_model.dart';
 import '../models/shared_expense_model.dart';
+import '../models/notification_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -270,6 +271,71 @@ class FirestoreService {
     }
     batch.delete(_firestore.collection('pools').doc(poolId));
     await batch.commit();
+  }
+
+  // ─── Notifications & Nudges ──────────────────────────────────────
+
+  /// Send a nudge (payment reminder) from creditor to debtor
+  Future<void> sendNudge({
+    required String fromUid,
+    required String toUid,
+    required String poolId,
+    required double amount,
+  }) async {
+    // Check if an unread nudge already exists for this exact scenario
+    final existingQuery = await _firestore
+        .collection('notifications')
+        .where('fromUid', isEqualTo: fromUid)
+        .where('toUid', isEqualTo: toUid)
+        .where('poolId', isEqualTo: poolId)
+        .where('type', isEqualTo: 'nudge')
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (existingQuery.docs.isNotEmpty) {
+      throw Exception('You have already nudged this person. Wait for them to respond.');
+    }
+
+    final docRef = _firestore.collection('notifications').doc();
+    final notification = NotificationModel(
+      id: docRef.id,
+      toUid: toUid,
+      fromUid: fromUid,
+      poolId: poolId,
+      amount: amount,
+      type: 'nudge',
+      isRead: false,
+      createdAt: DateTime.now(),
+    );
+
+    await docRef.set(notification.toMap());
+  }
+
+  /// Get stream of notifications for a user
+  Stream<List<NotificationModel>> getNotifications(String uid) {
+    return _firestore
+        .collection('notifications')
+        .where('toUid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => NotificationModel.fromMap(doc.data(), doc.id))
+          .toList();
+    });
+  }
+
+  /// Mark notification as read
+  Future<void> markNotificationAsRead(String notificationId) async {
+    await _firestore
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'isRead': true});
+  }
+
+  /// Delete notification
+  Future<void> deleteNotification(String notificationId) async {
+    await _firestore.collection('notifications').doc(notificationId).delete();
   }
 }
 

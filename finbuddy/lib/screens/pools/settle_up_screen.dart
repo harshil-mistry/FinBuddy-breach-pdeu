@@ -137,10 +137,11 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                         final bool canPayViaUpi = isMePaying && upiId.isNotEmpty;
 
                         final bool canSettle = isMePaying || t.to == FirebaseAuth.instance.currentUser?.uid;
+                        final bool isMeOwed = t.to == FirebaseAuth.instance.currentUser?.uid;
 
                         return GestureDetector(
                           onTap: canSettle
-                              ? () => _showSettlementOptions(t, canPayViaUpi, upiId)
+                              ? () => _showSettlementOptions(t, canPayViaUpi, upiId, isMeOwed, isMePaying)
                               : null,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -207,7 +208,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
     );
   }
 
-  void _showSettlementOptions(SettlementTransfer t, bool canPayViaUpi, String upiId) {
+  void _showSettlementOptions(SettlementTransfer t, bool canPayViaUpi, String upiId, bool isMeOwed, bool isMePaying) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -263,12 +264,51 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
                     foregroundColor: AppColors.pureWhite,
                   ),
                 ),
+
+                if (isMeOwed && !isMePaying) ...[
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _sendNudge(t);
+                    },
+                    icon: const Icon(Icons.notifications_active_rounded),
+                    label: const Text('Send Nudge'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppColors.warningOrange,
+                      foregroundColor: AppColors.pureWhite,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _sendNudge(SettlementTransfer t) async {
+    try {
+      await FirestoreService().sendNudge(
+        fromUid: t.to,
+        toUid: t.from,
+        poolId: widget.pool.id,
+        amount: t.amount,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nudge sent successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
+    }
   }
 
   static const platform = MethodChannel('com.breachpdeu.finbuddy/upi');
