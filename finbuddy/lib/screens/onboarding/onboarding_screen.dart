@@ -4,6 +4,7 @@ import '../../theme/app_colors.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
+import '../../widgets/day_selector.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -286,35 +287,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text('Day of month: ',
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  const SizedBox(width: 8),
-                  DropdownButton<int>(
-                    value: _incomeDayOfMonth,
-                    items: List.generate(
-                        28,
-                        (i) => DropdownMenuItem(
-                              value: i + 1,
-                              child: Text('${i + 1}'),
-                            )),
-                    onChanged: (val) =>
-                        setState(() => _incomeDayOfMonth = val ?? 1),
-                  ),
-                  const Spacer(),
-                  FilledButton.icon(
-                    onPressed: _addIncome,
-                    icon: const Icon(Icons.add_rounded, size: 20),
-                    label: const Text('Add'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+              DaySelector(
+                selectedDay: _incomeDayOfMonth,
+                onDaySelected: (val) => setState(() => _incomeDayOfMonth = val),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _addIncome,
+                  icon: const Icon(Icons.add_rounded, size: 20),
+                  label: const Text('Add Income'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: AppColors.primaryBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -410,35 +401,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text('Day of month: ',
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  const SizedBox(width: 8),
-                  DropdownButton<int>(
-                    value: _expenseDayOfMonth,
-                    items: List.generate(
-                        28,
-                        (i) => DropdownMenuItem(
-                              value: i + 1,
-                              child: Text('${i + 1}'),
-                            )),
-                    onChanged: (val) =>
-                        setState(() => _expenseDayOfMonth = val ?? 1),
-                  ),
-                  const Spacer(),
-                  FilledButton.icon(
-                    onPressed: _addExpense,
-                    icon: const Icon(Icons.add_rounded, size: 20),
-                    label: const Text('Add'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+              DaySelector(
+                selectedDay: _expenseDayOfMonth,
+                onDaySelected: (val) => setState(() => _expenseDayOfMonth = val),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _addExpense,
+                  icon: const Icon(Icons.add_rounded, size: 20),
+                  label: const Text('Add Expense'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: AppColors.primaryBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
