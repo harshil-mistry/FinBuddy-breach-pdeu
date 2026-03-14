@@ -240,3 +240,39 @@ app.post("/api/send-nudge", async (req, res) => {
         return res.status(500).json({ status: false, error: err.message });
     }
 });
+
+// --- POST /api/send-expense-notification ---
+app.post("/api/send-expense-notification", async (req, res) => {
+    try {
+        const { fcmToken, adderName, amount, groupName } = req.body;
+
+        if (!fcmToken || !adderName || amount == null || !groupName) {
+            return res.status(400).json({ status: false, error: "Missing fields" });
+        }
+
+        const message = {
+            token: fcmToken,
+            notification: {
+                title: "New Group Expense 🧾",
+                body: `${adderName} added a ₹${amount} expense in "${groupName}".`,
+            },
+            data: {
+                type: "new_expense",
+            },
+            android: {
+                notification: {
+                    sound: "default",
+                    clickAction: "FLUTTER_NOTIFICATION_CLICK"
+                }
+            }
+        };
+
+        const response = await admin.messaging().send(message);
+        console.log(`🚀 Expense push notification sent to a group member:`, response);
+        return res.json({ status: true, messageId: response });
+
+    } catch (err) {
+        console.error("❌ Send Expense Notification Error:", err.message);
+        return res.status(500).json({ status: false, error: err.message });
+    }
+});

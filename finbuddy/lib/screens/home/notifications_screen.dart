@@ -101,7 +101,7 @@ class NotificationsScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  notif.type == 'nudge' ? Icons.waving_hand_rounded : Icons.notifications_rounded,
+                  notif.type == 'nudge' ? Icons.waving_hand_rounded : Icons.receipt_long_rounded,
                   color: notif.isRead ? AppColors.textLight : AppColors.primaryBlue,
                 ),
               ),
@@ -111,7 +111,7 @@ class NotificationsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      notif.type == 'nudge' ? 'Payment Reminder' : 'Notification',
+                      notif.type == 'nudge' ? 'Payment Reminder' : 'New Group Expense',
                       style: TextStyle(
                         fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.bold,
                         color: AppColors.darkBlue,
@@ -122,7 +122,7 @@ class NotificationsScreen extends StatelessWidget {
                     Text(
                       notif.type == 'nudge' 
                           ? 'Someone nudged you to settle up ₹${notif.amount.toStringAsFixed(0)}.'
-                          : 'You have a new notification.',
+                          : 'A ₹${notif.amount.toStringAsFixed(0)} expense was added to your group.',
                       style: TextStyle(
                         color: notif.isRead ? AppColors.textLight : AppColors.textDark,
                         fontSize: 14,

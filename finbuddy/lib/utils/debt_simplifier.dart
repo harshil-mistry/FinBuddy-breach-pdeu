@@ -18,16 +18,8 @@ class SettlementTransfer {
 }
 
 class DebtSimplifier {
-  /// Analyzes a list of expenses and returns the minimum number of transactions
-  /// needed to settle all debts in the pool.
-  static List<SettlementTransfer> calculateSettlements(
-      List<SharedExpenseModel> expenses) {
-    if (expenses.isEmpty) return [];
-
-    // 1. Calculate the net balance of every person
-    // Net balance = Total paid - Total owed
-    // Positive means they are owed money (creditor)
-    // Negative means they owe money (debtor)
+  /// Calculates raw balance (+ive means owed, -ive means owes) for all users
+  static Map<String, double> calculateBalances(List<SharedExpenseModel> expenses) {
     Map<String, double> balances = {};
 
     for (var expense in expenses) {
@@ -42,6 +34,17 @@ class DebtSimplifier {
         balances[uid] = (balances[uid] ?? 0.0) - owedAmount;
       }
     }
+    return balances;
+  }
+
+  /// Analyzes a list of expenses and returns the minimum number of transactions
+  /// needed to settle all debts in the pool.
+  static List<SettlementTransfer> calculateSettlements(
+      List<SharedExpenseModel> expenses) {
+    if (expenses.isEmpty) return [];
+
+    // 1. Calculate the net balance of every person
+    Map<String, double> balances = calculateBalances(expenses);
 
     // 2. Separate into debtors and creditors
     List<MapEntry<String, double>> debtors = [];

@@ -14,6 +14,7 @@ import 'invite_screen.dart';
 import 'add_expense_sheet.dart';
 import 'settle_up_screen.dart';
 import 'expense_detail_sheet.dart';
+import '../../utils/debt_simplifier.dart';
 
 class PoolDetailScreen extends StatefulWidget {
   final String poolId;
@@ -604,8 +605,10 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
         // Trigger member name loading whenever pool updates (including join requesters)
         _loadMemberNames(pool.members, pool.joinRequests);
 
-        return Scaffold(
-          backgroundColor: AppColors.backgroundWhite,
+        return DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            backgroundColor: AppColors.backgroundWhite,
           appBar: AppBar(
             backgroundColor: AppColors.backgroundWhite,
             elevation: 0,
@@ -691,23 +694,35 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
                     )
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    const Text('Total Group Expenses', style: TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 8),
-                    Text(
-                      '₹${pool.totalExpenses.toStringAsFixed(0)}',
-                      style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Total Group Expenses', style: TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 8),
+                          Text(
+                            '₹${pool.totalExpenses.toStringAsFixed(0)}',
+                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Icon(Icons.group_rounded, color: Colors.white70, size: 16),
-                        const SizedBox(width: 8),
-                        Text('${pool.members.length} Members', style: const TextStyle(color: Colors.white70)),
-                      ],
-                    )
+                    Container(width: 1, height: 50, color: Colors.white24),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text('Members', style: TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${pool.members.length}',
+                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -733,12 +748,23 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
                   ),
                 ),
 
-              // Expenses List
+              const TabBar(
+                labelColor: AppColors.primaryBlue,
+                unselectedLabelColor: AppColors.textLight,
+                indicatorColor: AppColors.primaryBlue,
+                indicatorWeight: 3,
+                labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                tabs: [
+                  Tab(text: 'Balances'),
+                  Tab(text: 'History'),
+                ],
+              ),
+              
+              // Expenses & Balances List
               Expanded(
                 child: Container(
                   decoration: const BoxDecoration(
                     color: AppColors.pureWhite,
-                    borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
                   ),
                   child: StreamBuilder<List<SharedExpenseModel>>(
                     stream: _firestoreService.getSharedExpenses(widget.poolId),
@@ -750,97 +776,11 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
                       final allExpenses = expenseSnapshot.data ?? [];
                       final expenses = _applyFilters(allExpenses);
 
-                      if (allExpenses.isEmpty) {
-                        return const Center(child: Text('No expenses yet. Add one!', style: TextStyle(color: AppColors.textLight)));
-                      }
-
-                      if (expenses.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.filter_list_off_rounded, size: 60, color: AppColors.textLight),
-                              const SizedBox(height: 16),
-                              const Text('No expenses match your filters.', style: TextStyle(color: AppColors.textLight)),
-                              const SizedBox(height: 12),
-                              TextButton(
-                                onPressed: () => setState(() {
-                                  _filterPaidBy = null;
-                                  _filterPaidFor = null;
-                                  _filterFromDate = null;
-                                  _filterToDate = null;
-                                }),
-                                child: const Text('Clear Filters'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(24),
-                        itemCount: expenses.length,
-                        itemBuilder: (context, index) {
-                          final ex = expenses[index];
-                          final dateStr = DateFormat('MMM d, y').format(ex.date);
-
-                          return GestureDetector(
-                            onTap: () {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => ExpenseDetailSheet(expense: ex, pool: pool),
-                              );
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.pureWhite,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.borderLight),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: ex.description == 'Debt Settlement'
-                                          ? AppColors.successGreen.withAlpha(20)
-                                          : AppColors.errorRed.withAlpha(20),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      ex.description == 'Debt Settlement'
-                                          ? Icons.check_circle_outline_rounded
-                                          : Icons.receipt_long_rounded,
-                                      color: ex.description == 'Debt Settlement'
-                                          ? AppColors.successGreen
-                                          : AppColors.errorRed,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(ex.description, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'by ${_memberNames[ex.paidBy] ?? '...'} · $dateStr',
-                                          style: const TextStyle(color: AppColors.textLight, fontSize: 13),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text('₹${ex.amount.toStringAsFixed(0)}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.darkBlue)),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                      return TabBarView(
+                        children: [
+                          _buildBalancesTab(allExpenses), // Balances doesn't use filters typically
+                          _buildHistoryTab(expenses, pool),
+                        ],
                       );
                     },
                   ),
@@ -866,6 +806,157 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
                 label: const Text('Add Expense', style: TextStyle(color: AppColors.pureWhite, fontWeight: FontWeight.bold)),
               ),
             ],
+          ),
+        ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBalancesTab(List<SharedExpenseModel> expenses) {
+    if (expenses.isEmpty) {
+      return const Center(child: Text('No balances to show.', style: TextStyle(color: AppColors.textLight)));
+    }
+
+    Map<String, double> balances = DebtSimplifier.calculateBalances(expenses);
+    
+    // Sort balances so largest creditors (positive) are top
+    var sortedMembers = balances.keys.toList()
+      ..sort((a, b) => (balances[b] ?? 0).compareTo(balances[a] ?? 0));
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(24),
+      itemCount: sortedMembers.length,
+      itemBuilder: (context, index) {
+        String uid = sortedMembers[index];
+        double balance = balances[uid] ?? 0.0;
+        
+        bool isPositive = balance > 0.01;
+        bool isNegative = balance < -0.01;
+        
+        final name = _memberNames[uid] ?? uid;
+        String prefixText = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.pureWhite,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.lightBlue,
+                child: Text(prefixText, style: const TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              ),
+              Text(
+                '${isPositive ? '+' : ''}${isNegative ? '-' : ''}₹${balance.abs().toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 18,
+                  color: isPositive ? AppColors.successGreen : (isNegative ? AppColors.errorRed : AppColors.textLight)
+                )
+              )
+            ],
+          ),
+        );
+      }
+    );
+  }
+
+  Widget _buildHistoryTab(List<SharedExpenseModel> expenses, PoolModel pool) {
+    if (expenses.isEmpty) {
+      if (_hasActiveFilters) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.filter_list_off_rounded, size: 60, color: AppColors.textLight),
+              const SizedBox(height: 16),
+              const Text('No expenses match your filters.', style: TextStyle(color: AppColors.textLight)),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => setState(() {
+                  _filterPaidBy = null;
+                  _filterPaidFor = null;
+                  _filterFromDate = null;
+                  _filterToDate = null;
+                }),
+                child: const Text('Clear Filters'),
+              ),
+            ],
+          ),
+        );
+      }
+      return const Center(child: Text('No expenses yet. Add one!', style: TextStyle(color: AppColors.textLight)));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(24),
+      itemCount: expenses.length,
+      itemBuilder: (context, index) {
+        final ex = expenses[index];
+        final dateStr = DateFormat('MMM d, y').format(ex.date);
+
+        return GestureDetector(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ExpenseDetailSheet(expense: ex, pool: pool),
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.pureWhite,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: ex.description == 'Debt Settlement'
+                        ? AppColors.successGreen.withAlpha(20)
+                        : AppColors.errorRed.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    ex.description == 'Debt Settlement'
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.receipt_long_rounded,
+                    color: ex.description == 'Debt Settlement'
+                        ? AppColors.successGreen
+                        : AppColors.errorRed,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(ex.description, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'by ${_memberNames[ex.paidBy] ?? '...'} · $dateStr',
+                        style: const TextStyle(color: AppColors.textLight, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                Text('₹${ex.amount.toStringAsFixed(0)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.darkBlue)),
+              ],
+            ),
           ),
         );
       },

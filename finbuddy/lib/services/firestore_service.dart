@@ -217,6 +217,56 @@ class FirestoreService {
     });
 
     await batch.commit();
+
+    // Trigger Notifications
+    try {
+      final pool = await getPoolById(expense.poolId);
+      final senderUser = await getUser(expense.paidBy);
+      if (pool != null && senderUser != null) {
+        for (String memberId in pool.members) {
+          // Don't send a notification to the person who just added the expense
+          if (memberId == expense.paidBy) continue;
+          
+          final targetUser = await getUser(memberId);
+          if (targetUser == null) continue;
+          
+          // 1. Create In-App Notification Doc
+          final docRef = _firestore.collection('notifications').doc();
+          final notification = NotificationModel(
+            id: docRef.id,
+            toUid: memberId,
+            fromUid: expense.paidBy,
+            poolId: pool.id,
+            amount: expense.amount,
+            type: 'new_expense',
+            isRead: false,
+            createdAt: DateTime.now(),
+          );
+          await docRef.set(notification.toMap());
+
+          // 2. Trigger Node FCM Server
+          if (targetUser.fcmToken != null) {
+            final url = Uri.parse('https://finbuddy-breach-pdeu.onrender.com/api/send-expense-notification');
+            try {
+              await http.post(
+                url,
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode({
+                  'fcmToken': targetUser.fcmToken,
+                  'adderName': senderUser.displayName.isNotEmpty ? senderUser.displayName : 'Someone',
+                  'amount': expense.amount,
+                  'groupName': pool.name,
+                }),
+              );
+            } catch (e) {
+              // Ignore failure for one member
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore background notification failure
+    }
   }
 
   /// Stream shared expenses for a specific pool
