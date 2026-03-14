@@ -7,6 +7,7 @@ class PoolModel {
   final String inviteCode;
   final String ownerId;
   final List<String> members;
+  final List<String> joinRequests;
   final DateTime createdAt;
   final double totalExpenses;
 
@@ -17,6 +18,7 @@ class PoolModel {
     required this.inviteCode,
     required this.ownerId,
     required this.members,
+    this.joinRequests = const [],
     required this.createdAt,
     this.totalExpenses = 0.0,
   });
@@ -41,6 +43,7 @@ class PoolModel {
       inviteCode: map['inviteCode'] ?? '',
       ownerId: map['ownerId'] ?? '',
       members: List<String>.from(map['members'] ?? []),
+      joinRequests: List<String>.from(map['joinRequests'] ?? []),
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : DateTime.now(),

@@ -123,24 +123,51 @@ class FirestoreService {
     return docRef.id;
   }
 
-  /// Join a pool using an invite code
-  Future<bool> joinPool(String inviteCode, String uid) async {
+  /// Request to join a pool — adds uid to `joinRequests` list (pending admin approval)
+  /// Returns: 'ok' if request sent, 'already_member' if already in, 'not_found' if code invalid
+  Future<String> requestToJoinPool(String inviteCode, String uid) async {
     final querySnapshot = await _firestore
         .collection('pools')
         .where('inviteCode', isEqualTo: inviteCode)
         .get();
 
-    if (querySnapshot.docs.isEmpty) return false;
+    if (querySnapshot.docs.isEmpty) return 'not_found';
 
     final poolDoc = querySnapshot.docs.first;
-    List<String> members = List<String>.from(poolDoc.data()['members'] ?? []);
+    final data = poolDoc.data();
+    final List<String> members = List<String>.from(data['members'] ?? []);
+    final List<String> requests = List<String>.from(data['joinRequests'] ?? []);
 
-    if (!members.contains(uid)) {
-      members.add(uid);
-      await poolDoc.reference.update({'members': members});
-    }
+    if (members.contains(uid)) return 'already_member';
+    if (requests.contains(uid)) return 'ok'; // already requested
 
-    return true; // Successfully joined
+    await poolDoc.reference.update({
+      'joinRequests': FieldValue.arrayUnion([uid]),
+    });
+
+    return 'ok';
+  }
+
+  /// Admin approves a join request
+  Future<void> approveJoinRequest(String poolId, String uid) async {
+    await _firestore.collection('pools').doc(poolId).update({
+      'joinRequests': FieldValue.arrayRemove([uid]),
+      'members': FieldValue.arrayUnion([uid]),
+    });
+  }
+
+  /// Admin denies/dismisses a join request
+  Future<void> denyJoinRequest(String poolId, String uid) async {
+    await _firestore.collection('pools').doc(poolId).update({
+      'joinRequests': FieldValue.arrayRemove([uid]),
+    });
+  }
+
+  /// Admin kicks a member out of the pool
+  Future<void> kickMember(String poolId, String uid) async {
+    await _firestore.collection('pools').doc(poolId).update({
+      'members': FieldValue.arrayRemove([uid]),
+    });
   }
 
   /// Stream pools that the user is a member of

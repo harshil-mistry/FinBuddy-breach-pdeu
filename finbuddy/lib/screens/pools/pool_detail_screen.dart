@@ -40,8 +40,9 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
     );
   }
 
-  Future<void> _loadMemberNames(List<String> members) async {
-    for (String uid in members) {
+  Future<void> _loadMemberNames(List<String> members, [List<String>? joinRequests]) async {
+    final allUids = [...members, ...?joinRequests];
+    for (String uid in allUids) {
       if (!_memberNames.containsKey(uid)) {
         UserModel? user = await _firestoreService.getUser(uid);
         if (mounted) {
@@ -217,61 +218,216 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
   bool get _hasActiveFilters =>
       _filterPaidBy != null || _filterPaidFor != null || _filterFromDate != null || _filterToDate != null;
 
-  void _showGroupActions(BuildContext context, PoolModel pool) {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-    final isOwner = pool.ownerId == currentUid;
-
+  void _showGroupActions(BuildContext context, PoolModel initialPool) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(pool.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkBlue), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text('${pool.members.length} members', style: const TextStyle(color: AppColors.textLight), textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              if (!isOwner)
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _confirmLeavePool(context, pool, currentUid!);
-                  },
-                  icon: const Icon(Icons.exit_to_app_rounded),
-                  label: const Text('Leave Group'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppColors.errorRed.withAlpha(20),
-                    foregroundColor: AppColors.errorRed,
-                    elevation: 0,
-                    side: BorderSide(color: AppColors.errorRed.withAlpha(80)),
+      builder: (ctx) => StreamBuilder<PoolModel?>(
+        stream: _firestoreService.getPoolStream(initialPool.id),
+        builder: (ctx, snapshot) {
+          final pool = snapshot.data ?? initialPool;
+          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+          final isOwner = pool.ownerId == currentUid;
+          
+          return DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            expand: false,
+        builder: (ctx, scrollController) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
-              if (isOwner) ...[
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _confirmDeletePool(context, pool);
-                  },
-                  icon: const Icon(Icons.delete_forever_rounded),
-                  label: const Text('Delete Group'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppColors.errorRed,
-                    foregroundColor: Colors.white,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Group Management', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkBlue)),
+                    if (isOwner)
+                      IconButton(
+                        icon: const Icon(Icons.delete_forever_rounded, color: AppColors.errorRed),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _confirmDeletePool(context, pool);
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      // --- JOIN REQUESTS (admin only) ---
+                      if (isOwner && pool.joinRequests.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            const Text('Pending Requests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkBlue)),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(color: AppColors.errorRed, borderRadius: BorderRadius.circular(10)),
+                              child: Text('${pool.joinRequests.length}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...pool.joinRequests.map((reqUid) {
+                          final name = _memberNames[reqUid] ?? reqUid;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.pureWhite,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.borderLight),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: AppColors.lightBlue,
+                                  child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                      style: const TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600))),
+                                IconButton(
+                                  icon: const Icon(Icons.check_circle_rounded, color: AppColors.successGreen),
+                                  tooltip: 'Approve',
+                                  onPressed: () async {
+                                    await _firestoreService.approveJoinRequest(pool.id, reqUid);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.cancel_rounded, color: AppColors.errorRed),
+                                  tooltip: 'Deny',
+                                  onPressed: () async {
+                                    await _firestoreService.denyJoinRequest(pool.id, reqUid);
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const Divider(height: 32),
+                      ],
+
+                      // --- MEMBERS LIST ---
+                      Text('Members (${pool.members.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkBlue)),
+                      const SizedBox(height: 8),
+                      ...pool.members.map((memberUid) {
+                        final name = _memberNames[memberUid] ?? 'Loading...';
+                        final isThisOwner = memberUid == pool.ownerId;
+                        final isMe = memberUid == currentUid;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isMe ? AppColors.lightBlue : AppColors.pureWhite,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isMe ? AppColors.primaryBlue.withAlpha(60) : AppColors.borderLight),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: isThisOwner ? AppColors.primaryBlue : AppColors.lightBlue,
+                                child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                    style: TextStyle(color: isThisOwner ? Colors.white : AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    if (isThisOwner)
+                                      const Text('Admin', style: TextStyle(color: AppColors.primaryBlue, fontSize: 12)),
+                                    if (isMe && !isThisOwner)
+                                      const Text('You', style: TextStyle(color: AppColors.textLight, fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                              // Kick button — admin can kick anyone except themselves
+                              if (isOwner && !isMe && !isThisOwner)
+                                IconButton(
+                                  icon: const Icon(Icons.person_remove_rounded, color: AppColors.errorRed),
+                                  tooltip: 'Remove Member',
+                                  onPressed: () => _confirmKickMember(ctx, pool, memberUid, name),
+                                ),
+                            ],
+                          ),
+                        );
+                      }),
+
+                      const Divider(height: 32),
+
+                      // Leave / action button for non-owner
+                      if (!isOwner)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _confirmLeavePool(context, pool, currentUid!);
+                          },
+                          icon: const Icon(Icons.exit_to_app_rounded),
+                          label: const Text('Leave Group'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: AppColors.errorRed.withAlpha(20),
+                            foregroundColor: AppColors.errorRed,
+                            elevation: 0,
+                            side: BorderSide(color: AppColors.errorRed.withAlpha(80)),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         ),
+      );
+     },
+    ),
+   );
+  }
+
+  void _confirmKickMember(BuildContext ctx, PoolModel pool, String uid, String name) {
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Remove Member', style: TextStyle(color: AppColors.darkBlue, fontWeight: FontWeight.bold)),
+        content: Text('Remove $name from "${pool.name}"? Their expense records will remain.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              await _firestoreService.kickMember(pool.id, uid);
+            },
+            child: const Text('Remove'),
+          ),
+        ],
       ),
     );
   }
+
+
 
   void _confirmLeavePool(BuildContext context, PoolModel pool, String uid) {
     showDialog(
@@ -333,8 +489,8 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
           return const Scaffold(body: Center(child: Text('Pool not found')));
         }
 
-        // Trigger member name loading whenever pool updates
-        _loadMemberNames(pool.members);
+        // Trigger member name loading whenever pool updates (including join requesters)
+        _loadMemberNames(pool.members, pool.joinRequests);
 
         return Scaffold(
           backgroundColor: AppColors.backgroundWhite,
@@ -382,9 +538,22 @@ class _PoolDetailScreenState extends State<PoolDetailScreen> {
                 },
                 icon: const Icon(Icons.payments_rounded, color: AppColors.successGreen),
               ),
-              IconButton(
-                onPressed: () => _showGroupActions(context, pool),
-                icon: const Icon(Icons.more_vert_rounded, color: AppColors.darkBlue),
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  IconButton(
+                    onPressed: () => _showGroupActions(context, pool),
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.darkBlue),
+                  ),
+                  if (pool.ownerId == FirebaseAuth.instance.currentUser?.uid && pool.joinRequests.isNotEmpty)
+                    Positioned(
+                      right: 8, top: 8,
+                      child: Container(
+                        width: 10, height: 10,
+                        decoration: const BoxDecoration(color: AppColors.errorRed, shape: BoxShape.circle),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 4),
             ],
