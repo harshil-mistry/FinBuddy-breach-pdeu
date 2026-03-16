@@ -254,6 +254,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
           prefilledDescription: result.description,
           prefilledParticipants: result.participantUids.toSet(),
           prefilledPaidByUid: result.paidByUid,
+          prefilledContributions: result.contributions,
         ),
       );
     } catch (e) {

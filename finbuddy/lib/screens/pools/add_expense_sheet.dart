@@ -16,6 +16,8 @@ class AddSharedExpenseSheet extends StatefulWidget {
   final Set<String>? prefilledParticipants;
   /// Pre-selected payer uid (from voice agent)
   final String? prefilledPaidByUid;
+  /// Custom contributions from voice agent (uid -> amount)
+  final Map<String, double>? prefilledContributions;
 
   const AddSharedExpenseSheet({
     super.key,
@@ -25,6 +27,7 @@ class AddSharedExpenseSheet extends StatefulWidget {
     this.existingExpense,
     this.prefilledParticipants,
     this.prefilledPaidByUid,
+    this.prefilledContributions,
   });
 
   @override
@@ -76,14 +79,25 @@ class _AddSharedExpenseSheetState extends State<AddSharedExpenseSheet> {
     }
 
     for (String uid in widget.pool.members) {
-      _splitValues[uid]  = ex?.splits[uid] ?? 0.0;
-      _controllers[uid]  = TextEditingController(
-        text: ex != null ? (ex.splits[uid] ?? 0.0).toStringAsFixed(2) : '',
-      );
+      // If we have custom contributions from voice agent, use those
+      if (widget.prefilledContributions != null && widget.prefilledContributions!.containsKey(uid)) {
+        _splitValues[uid] = widget.prefilledContributions![uid]!;
+        _controllers[uid] = TextEditingController(
+          text: widget.prefilledContributions![uid]!.toStringAsFixed(2),
+        );
+      } else {
+        _splitValues[uid]  = ex?.splits[uid] ?? 0.0;
+        _controllers[uid]  = TextEditingController(
+          text: ex != null ? (ex.splits[uid] ?? 0.0).toStringAsFixed(2) : '',
+        );
+      }
     }
 
-    // Guess split type from loaded expense
+    // Guess split type from loaded expense or custom contributions
     if (ex != null) {
+      _splitType = 'Exact';
+    } else if (widget.prefilledContributions != null && widget.prefilledContributions!.isNotEmpty) {
+      // If voice agent provided custom contributions, use Exact split
       _splitType = 'Exact';
     }
 

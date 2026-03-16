@@ -401,20 +401,44 @@ Pool members: [${membersStr}]
 
 Your task: Parse the user's spoken transcript and extract expense details.
 
+IMPORTANT - Name Matching:
+- The transcript may have typos or mispronunciations due to speech-to-text errors
+- Common errors: "Meet" -> "Meat", "Raj" -> "Rog", "Harsh" -> "Hash", etc.
+- Use fuzzy/phonetic matching: look for similar sounding names
+- Check both exact match AND partial/similar matches
+- Consider context: if someone says "Meat" and there's a member "Meet", it's likely the same person
+
+CRITICAL - Participant Selection:
+- ONLY include uids of people explicitly mentioned in the transcript
+- Default to ALL members ONLY if: nothing is specified, or words like "everyone", "all", "everybody" are used
+- If a specific name is mentioned (even one person), ONLY include that person
+- Do NOT assume everyone is included - be conservative
+
 Rules:
 1. Return ONLY a valid JSON object — no markdown, no explanation, no extra text.
 2. "description": a short title (2-4 words) for the expense. Capitalize first letter.
-3. "amount": a number (no currency symbol). If not mentioned, use null.
+3. "amount": the total amount mentioned (no currency symbol). If not mentioned, use null.
 4. "participantUids": array of uid strings from the members list who should share the expense.
-   - Match names mentioned in the transcript to members by name (case-insensitive, partial match ok).
-   - If no specific names are mentioned, or the word "everyone"/"all" is used, include ALL member uids.
-   - If you cannot identify any member names, include ALL member uids.
-5. "paidByUid": uid of the person who paid. Match "I" to the first member, or match a name. If unclear, use null.
+   - Match names mentioned in the transcript to members (case-insensitive, partial match, phonetic match)
+   - If NO specific names are mentioned, or the word "everyone"/"all" is used, include ALL member uids
+   - If ANY specific person is mentioned, ONLY include that person's uid (not everyone)
+5. "paidByUid": uid of the person who paid. Match "I"/"me" to the first member, or match a name. If unclear, use null.
+6. "contributions": object mapping uid to their contribution amount.
+   - If specific amounts are mentioned for each person (e.g., "A paid 500, B paid 200"), extract them.
+   - If NO specific amounts are mentioned, set to null or {}.
 
 Output format (strict):
-{"description":"<string>","amount":<number or null>,"participantUids":[<uids>],"paidByUid":<uid or null>}`;
+{"description":"<string>","amount":<number or null>,"participantUids":[<uids>],"paidByUid":<uid or null>,"contributions":<object or null>}`;
 
-    const userMessage = `Transcript: "${transcript}"`;
+    const userMessage = `Transcript: "${transcript}"
+
+IMPORTANT:
+- Extract EXACTLY who was mentioned - do NOT add extra people
+- If someone says "Meet and Raj paid" and Meet=uid1, Raj=uid2, only include [uid1, uid2]
+- Only use ALL members if they say "everyone", "all", or don't specify anyone
+- Handle name typos: "Meat" → "Meet", "Rog" → "Raj", etc.
+- If contributions are mentioned ("A 500, B 200"), extract them exactly
+- If just total is mentioned with no breakdown, set contributions to null`;
 
     // ── Step 6: Call NVIDIA NIM LLM ──────────────────────────────────────────
     console.log(`[${requestId}] Step 6/8: Sending request to NVIDIA NIM LLM...`);
@@ -508,6 +532,7 @@ Output format (strict):
       amount: null,
       participantUids: allUids,
       paidByUid: null,
+      contributions: null,
       transcript,
     };
     const duration = Date.now() - startTime;
@@ -541,7 +566,30 @@ Output format (strict):
   const paidByUid = allUids.includes(parsed.paidByUid) ? parsed.paidByUid : null;
   console.log(`[${requestId}]    Paid by: ${paidByUid ?? 'not specified'}`);
 
-  const result = { status: true, description, amount, participantUids, paidByUid, transcript };
+  // Handle contributions - filter to only valid UIDs and valid amounts
+  let contributions = null;
+  if (parsed.contributions && typeof parsed.contributions === 'object') {
+    const validContributions = {};
+    for (const [uid, amount] of Object.entries(parsed.contributions)) {
+      if (allUids.includes(uid) && typeof amount === 'number' && amount > 0) {
+        validContributions[uid] = amount;
+      }
+    }
+    if (Object.keys(validContributions).length > 0) {
+      contributions = validContributions;
+      console.log(`[${requestId}]    Contributions: ${JSON.stringify(contributions)}`);
+    }
+  }
+
+  const result = { 
+    status: true, 
+    description, 
+    amount, 
+    participantUids, 
+    paidByUid, 
+    contributions,
+    transcript 
+  };
   const duration = Date.now() - startTime;
   console.log(`[${requestId}] ✅ VOICE EXPENSE SUCCESS (${duration}ms)`);
   console.log(`[${requestId}]    Result: ${JSON.stringify(result)}`);

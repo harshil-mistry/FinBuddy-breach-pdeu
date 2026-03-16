@@ -7,6 +7,7 @@ class VoiceExpenseResult {
   final List<String> participantUids;
   final String? paidByUid;
   final String transcript;
+  final Map<String, double>? contributions; // uid -> amount (custom split, if mentioned)
 
   VoiceExpenseResult({
     required this.description,
@@ -14,6 +15,7 @@ class VoiceExpenseResult {
     required this.participantUids,
     required this.paidByUid,
     required this.transcript,
+    this.contributions,
   });
 }
 
@@ -62,6 +64,11 @@ class VoiceExpenseService {
       participantUids: List<String>.from(data['participantUids'] ?? []),
       paidByUid:       data['paidByUid'] as String?,
       transcript:      data['transcript'] as String? ?? '',
+      contributions:   data['contributions'] != null 
+          ? (data['contributions'] as Map<String, dynamic>).map(
+              (key, value) => MapEntry(key, (value as num).toDouble()),
+            )
+          : null,
     );
   }
 }
