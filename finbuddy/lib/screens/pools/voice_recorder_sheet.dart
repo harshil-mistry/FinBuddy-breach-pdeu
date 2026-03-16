@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -11,7 +12,7 @@ import '../../theme/app_colors.dart';
 import 'add_expense_sheet.dart';
 
 /// Bottom sheet for voice-based expense entry.
-/// Flow:  request mic permission → record → stop → send to backend → open AddSharedExpenseSheet pre-filled
+/// Flow: request mic permission → record → stop → send to backend → open AddSharedExpenseSheet pre-filled
 Future<void> showVoiceRecorderSheet(BuildContext context, PoolModel pool) async {
   await showModalBottomSheet(
     context: context,
@@ -38,7 +39,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
   String? _transcriptPreview;
 
   // ─── Recording ────────────────────────────────────────────────────────────
-  final Record _recorder = Record();
+  final AudioRecorder _recorder = AudioRecorder();
   String? _audioPath;
   Timer? _timer;
   int _secondsElapsed = 0;
@@ -93,26 +94,71 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
 
   Future<void> _startRecording() async {
     try {
-      final dir  = await getTemporaryDirectory();
-      final path = '${dir.path}/voice_expense_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      // Check if recorder is already recording
+      if (await _recorder.isRecording()) {
+        print('⚠️ VoiceRecorder: Already recording, stopping first');
+        await _recorder.stop();
+      }
+      
+      // Get temp directory and create path
+      final dir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final path = '${dir.path}/voice_expense_$timestamp.wav';
+      
+      print('🎙️ VoiceRecorder: Starting recording to: $path');
+      print('🎙️ VoiceRecorder: Recorder initialized: ${_recorder}');
 
+      // Check and request permission again to be sure
+      final micStatus = await Permission.microphone.status;
+      print('🎙️ VoiceRecorder: Microphone permission status: $micStatus');
+      
+      // Use WAV encoder for better emulator compatibility
       await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
         path: path,
-        encoder:      AudioEncoder.aacLc,
-        bitRate:      64000,
-        samplingRate: 16000,
       );
+      
+      // Verify recording started
+      final isRecording = await _recorder.isRecording();
+      print('🎙️ VoiceRecorder: Recording started: $isRecording');
+
+      if (!isRecording) {
+        throw Exception('Failed to start recording - recorder returned false');
+      }
 
       _audioPath = path;
       _secondsElapsed = 0;
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() => _secondsElapsed++);
-        // Auto-stop after 90 seconds to prevent huge files
-        if (_secondsElapsed >= 90) _stopRecording();
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) async {
+        if (!mounted) return;
+        
+        // Check if still recording
+        final stillRecording = await _recorder.isRecording();
+        if (!stillRecording) {
+          print('⚠️ VoiceRecorder: Recording stopped unexpectedly');
+          _timer?.cancel();
+          return;
+        }
+        
+        setState(() => _secondsElapsed++);
+        print('🎙️ VoiceRecorder: Recording for ${_secondsElapsed}s');
+        
+        // Auto-stop after 90 seconds
+        if (_secondsElapsed >= 90) {
+          print('🎙️ VoiceRecorder: Auto-stop after 90 seconds');
+          _stopRecording();
+        }
       });
 
       if (mounted) setState(() => _phase = _RecordPhase.recording);
-    } catch (e) {
+      print('✅ VoiceRecorder: Recording phase active');
+      
+    } catch (e, stackTrace) {
+      print('❌ VoiceRecorder: Error starting recording: $e');
+      print('❌ VoiceRecorder: Stack trace: $stackTrace');
       if (mounted) setState(() {
         _phase = _RecordPhase.error;
         _errorMessage = 'Could not start microphone: $e';
@@ -121,17 +167,51 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
   }
 
   Future<void> _stopRecording() async {
+    print('🎙️ VoiceRecorder: Stop recording requested');
     _timer?.cancel();
-    if (!await _recorder.isRecording()) return;
-
-    setState(() => _phase = _RecordPhase.processing);
-
+    
     try {
-      await _recorder.stop();
-      final path = _audioPath;
-      if (path == null || path.isEmpty) throw Exception('Recording file not found.');
-      await _sendToBackend(path);
-    } catch (e) {
+      final wasRecording = await _recorder.isRecording();
+      print('🎙️ VoiceRecorder: Was recording: $wasRecording');
+      
+      if (!wasRecording) {
+        print('⚠️ VoiceRecorder: Not recording, nothing to stop');
+        return;
+      }
+
+      setState(() => _phase = _RecordPhase.processing);
+      
+      // Stop the recorder
+      print('🎙️ VoiceRecorder: Calling recorder.stop()');
+      final recordedPath = await _recorder.stop();
+      print('🎙️ VoiceRecorder: Recording stopped, file at: $recordedPath');
+      
+      if (recordedPath == null || recordedPath.isEmpty) {
+        throw Exception('Recording file not found - recorder returned null or empty path');
+      }
+      
+      // Check if file exists and has content
+      final file = File(recordedPath);
+      final exists = await file.exists();
+      final fileSize = exists ? await file.length() : 0;
+      
+      print('🎙️ VoiceRecorder: File exists: $exists, Size: $fileSize bytes');
+      print('🎙️ VoiceRecorder: Recording duration: $_secondsElapsed seconds');
+      
+      if (!exists || fileSize == 0) {
+        throw Exception('Recording file is empty or does not exist. File exists: $exists, Size: $fileSize bytes');
+      }
+      
+      // If recording was very short, it's likely empty
+      if (_secondsElapsed < 1) {
+        print('⚠️ VoiceRecorder: Recording was very short (${_secondsElapsed}s)');
+      }
+      
+      await _sendToBackend(recordedPath);
+      
+    } catch (e, stackTrace) {
+      print('❌ VoiceRecorder: Error stopping recording: $e');
+      print('❌ VoiceRecorder: Stack trace: $stackTrace');
       if (mounted) setState(() {
         _phase = _RecordPhase.error;
         _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -141,14 +221,14 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
 
   Future<void> _sendToBackend(String path) async {
     final members = widget.pool.members.map((uid) => {
-      'uid':  uid,
+      'uid': uid,
       'name': _memberNames[uid] ?? 'User',
     }).toList();
 
     try {
       final result = await VoiceExpenseService.analyze(
         audioPath: path,
-        members:   members,
+        members: members,
       );
 
       if (!mounted) return;
@@ -170,10 +250,10 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
         backgroundColor: Colors.transparent,
         builder: (_) => AddSharedExpenseSheet(
           pool: widget.pool,
-          prefilledAmount:      result.amount,
+          prefilledAmount: result.amount,
           prefilledDescription: result.description,
           prefilledParticipants: result.participantUids.toSet(),
-          prefilledPaidByUid:   result.paidByUid,
+          prefilledPaidByUid: result.paidByUid,
         ),
       );
     } catch (e) {
@@ -230,15 +310,15 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
   Widget _buildTitle() {
     final titles = {
       _RecordPhase.requestingPermission: 'Voice Expense',
-      _RecordPhase.recording:            'Listening...',
-      _RecordPhase.processing:           'Analysing...',
-      _RecordPhase.done:                 'Got it!',
-      _RecordPhase.error:                'Oops!',
+      _RecordPhase.recording: 'Listening...',
+      _RecordPhase.processing: 'Analysing...',
+      _RecordPhase.done: 'Got it!',
+      _RecordPhase.error: 'Oops!',
     };
     return Text(
       titles[_phase] ?? 'Voice Expense',
       style: const TextStyle(
-        fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.darkBlue),
+          fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.darkBlue),
     );
   }
 
@@ -274,8 +354,8 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
             Text(
               _formatTime(_secondsElapsed),
               style: const TextStyle(
-                fontSize: 28, fontWeight: FontWeight.bold,
-                color: AppColors.darkBlue, letterSpacing: 2),
+                  fontSize: 28, fontWeight: FontWeight.bold,
+                  color: AppColors.darkBlue, letterSpacing: 2),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -292,7 +372,7 @@ class _VoiceRecorderSheetState extends State<_VoiceRecorderSheet>
             const SizedBox(
               width: 64, height: 64,
               child: CircularProgressIndicator(
-                color: AppColors.primaryBlue, strokeWidth: 3)),
+                  color: AppColors.primaryBlue, strokeWidth: 3)),
             const SizedBox(height: 16),
             const Text(
               'Transcribing and parsing\nwith AI...',

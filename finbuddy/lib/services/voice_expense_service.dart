@@ -18,7 +18,10 @@ class VoiceExpenseResult {
 }
 
 class VoiceExpenseService {
-  static const String _baseUrl = 'https://finbuddy-breach-pdeu.onrender.com';
+  // Use 10.118.66.183 for physical device via USB debugging
+  // Use 10.0.2.2 for Android emulator
+  // Use localhost for iOS simulator
+  static const String _baseUrl = 'http://10.118.66.183:3000';
 
   /// Sends the audio file at [audioPath] plus [members] list to the backend.
   /// Returns a [VoiceExpenseResult] on success, throws a descriptive [Exception] on failure.
