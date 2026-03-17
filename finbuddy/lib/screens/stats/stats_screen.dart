@@ -27,7 +27,7 @@ class StatsScreen extends StatelessWidget {
 
                   final transactions = snapshot.data ?? [];
                   final expenses = transactions
-                      .where((t) => t.type == 'expense')
+                      .where((t) => t.type == 'expense' && t.category != 'Settlements')
                       .toList();
 
                   if (expenses.isEmpty) {
@@ -289,6 +289,8 @@ class StatsScreen extends StatelessWidget {
       'Utilities',
       'Subscriptions',
       'Travel',
+      'Settlements',
+      'Transfers',
     ];
 
     for (final t in expenses) {
@@ -315,6 +317,8 @@ class StatsScreen extends StatelessWidget {
       const Color(0xFFDDA0DD),
       const Color(0xFF98D8C8),
       const Color(0xFFF7DC6F),
+      const Color(0xFF808080),
+      const Color(0xFFA0522D),
     ];
 
     final sections = <PieChartSectionData>[];

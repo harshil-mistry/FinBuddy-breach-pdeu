@@ -252,7 +252,9 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
     _descCtrl   = TextEditingController(text: widget.transaction.description);
     _amountCtrl = TextEditingController(
         text: widget.transaction.amount.toStringAsFixed(2));
-    _category   = widget.transaction.category;
+    _category   = TransactionModel.allCategories.contains(widget.transaction.category)
+        ? widget.transaction.category
+        : 'Other';
     _type       = widget.transaction.type;
   }
 
@@ -270,13 +272,24 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
 
     setState(() => _isSaving = true);
     try {
+      final String finalCategory;
+      final String finalTag;
+      
+      if (_category == 'Other') {
+        finalCategory = widget.transaction.category;
+        finalTag = widget.transaction.tag;
+      } else {
+        finalCategory = _category;
+        finalTag = TransactionModel.getTagForCategory(_category);
+      }
+
       final updated = TransactionModel(
         id:          widget.transaction.id,
         uid:         widget.transaction.uid,
         description: desc,
         amount:      amount,
-        category:    _category,
-        tag:         TransactionModel.getTagForCategory(_category),
+        category:    finalCategory,
+        tag:         finalTag,
         type:        _type,
         poolId:      widget.transaction.poolId,
         date:        widget.transaction.date,
@@ -381,9 +394,7 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: TransactionModel.allCategories.contains(_category)
-                      ? _category
-                      : TransactionModel.allCategories.first,
+                  value: _category,
                   isExpanded: true,
                   items: TransactionModel.allCategories.map((cat) {
                     return DropdownMenuItem(value: cat, child: Text(cat));

@@ -387,7 +387,7 @@ class _SettleUpScreenState extends State<SettleUpScreen> {
               ? 'Settled debt to ${_memberNames[t.to] ?? 'Unknown'}'
               : 'Received settlement from ${_memberNames[t.from] ?? 'Unknown'}',
           amount: t.amount,
-          category: 'Transfers',
+          category: 'Settlements',
           tag: 'Need',
           type: isPayer ? 'expense' : 'income',
           date: DateTime.now(),

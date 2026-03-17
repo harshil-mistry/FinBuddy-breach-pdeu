@@ -37,6 +37,7 @@ class TransactionModel {
     'Education': 'Need',
     'Phone/Internet': 'Need',
     'EMI/Loan': 'Need',
+    'Settlements': 'Need',
     // Wants
     'Food & Dining': 'Want',
     'Shopping': 'Want',
