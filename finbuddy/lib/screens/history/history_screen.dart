@@ -164,36 +164,37 @@ class HistoryScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Text(t.category,
-                            style: const TextStyle(
-                                color: AppColors.textLight, fontSize: 12)),
-                        if (isExpense) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: t.tag == 'Need'
-                                  ? AppColors.primaryBlue.withAlpha(20)
-                                  : AppColors.warningOrange.withAlpha(20),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              t.tag,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                    if (t.type != 'income')
+                      Row(
+                        children: [
+                          Text(t.category,
+                              style: const TextStyle(
+                                  color: AppColors.textLight, fontSize: 12)),
+                          if (isExpense) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
                                 color: t.tag == 'Need'
-                                    ? AppColors.primaryBlue
-                                    : AppColors.warningOrange,
+                                    ? AppColors.primaryBlue.withAlpha(20)
+                                    : AppColors.warningOrange.withAlpha(20),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                t.tag,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: t.tag == 'Need'
+                                      ? AppColors.primaryBlue
+                                      : AppColors.warningOrange,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
@@ -356,8 +357,6 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
               segments: const [
                 ButtonSegment(value: 'expense', label: Text('Expense')),
                 ButtonSegment(value: 'income',  label: Text('Income')),
-                ButtonSegment(value: 'savings',    label: Text('Savings')),
-                ButtonSegment(value: 'investment', label: Text('Investment')),
               ],
               selected: {_type},
               onSelectionChanged: (v) => setState(() => _type = v.first),

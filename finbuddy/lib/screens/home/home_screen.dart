@@ -50,7 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
                       );
                     },
                     child: CircleAvatar(
@@ -60,8 +62,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? NetworkImage(user!.photoURL!)
                           : null,
                       child: user?.photoURL == null
-                          ? const Icon(Icons.person_rounded,
-                              color: AppColors.primaryBlue)
+                          ? const Icon(
+                              Icons.person_rounded,
+                              color: AppColors.primaryBlue,
+                            )
                           : null,
                     ),
                   ),
@@ -100,12 +104,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         return Stack(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.notifications_none_rounded),
+                              icon: const Icon(
+                                Icons.notifications_none_rounded,
+                              ),
                               color: AppColors.textDark,
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                                  MaterialPageRoute(
+                                    builder: (_) => const NotificationsScreen(),
+                                  ),
                                 );
                               },
                               tooltip: 'Notifications',
@@ -130,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
-                  
+
                   // Sign Out
                   IconButton(
                     icon: const Icon(Icons.logout_rounded),
@@ -148,8 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: StreamBuilder<List<TransactionModel>>(
-                  stream:
-                      _firestoreService.getMonthlyTransactions(user.uid),
+                  stream: _firestoreService.getMonthlyTransactions(user.uid),
                   builder: (context, snapshot) {
                     double totalIncome = 0;
                     double totalExpense = 0;
@@ -168,10 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF2A84FF),
-                            Color(0xFF1A5DC7),
-                          ],
+                          colors: [Color(0xFF2A84FF), Color(0xFF1A5DC7)],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
@@ -243,9 +247,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text(
                 'Recent Transactions',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 18,
-                      color: AppColors.darkBlue,
-                    ),
+                  fontSize: 18,
+                  color: AppColors.darkBlue,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -254,8 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (user != null)
               Expanded(
                 child: StreamBuilder<List<TransactionModel>>(
-                  stream:
-                      _firestoreService.getRecentTransactions(user.uid),
+                  stream: _firestoreService.getRecentTransactions(user.uid),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -266,19 +269,26 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.receipt_long_rounded,
-                                size: 56, color: AppColors.borderLight),
+                            Icon(
+                              Icons.receipt_long_rounded,
+                              size: 56,
+                              color: AppColors.borderLight,
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               'No transactions yet',
                               style: TextStyle(
-                                  color: AppColors.textLight, fontSize: 15),
+                                color: AppColors.textLight,
+                                fontSize: 15,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Tap + to add your first one!',
                               style: TextStyle(
-                                  color: AppColors.textLight, fontSize: 13),
+                                color: AppColors.textLight,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
@@ -309,8 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _summaryChip(
-      IconData icon, String label, String value, Color color) {
+  Widget _summaryChip(IconData icon, String label, String value, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -325,14 +334,21 @@ class _HomeScreenState extends State<HomeScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: TextStyle(
-                        color: Colors.white.withAlpha(160), fontSize: 11)),
-                Text(value,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withAlpha(160),
+                    fontSize: 11,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ],
@@ -382,38 +398,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Text(
-                      t.category,
-                      style: TextStyle(
-                          color: AppColors.textLight, fontSize: 12),
-                    ),
-                    if (isExpense) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: t.tag == 'Need'
-                              ? AppColors.primaryBlue.withAlpha(20)
-                              : AppColors.warningOrange.withAlpha(20),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          t.tag,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: t.tag == 'Need'
-                                ? AppColors.primaryBlue
-                                : AppColors.warningOrange,
-                          ),
+                if (t.type != 'income')
+                  Row(
+                    children: [
+                      Text(
+                        t.category,
+                        style: TextStyle(
+                          color: AppColors.textLight,
+                          fontSize: 12,
                         ),
                       ),
+                      if (isExpense) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: t.tag == 'Need'
+                                ? AppColors.primaryBlue.withAlpha(20)
+                                : AppColors.warningOrange.withAlpha(20),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            t.tag,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: t.tag == 'Need'
+                                  ? AppColors.primaryBlue
+                                  : AppColors.warningOrange,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
+                  ),
               ],
             ),
           ),
@@ -442,14 +463,17 @@ class _NewExpenseSheet extends StatefulWidget {
 class _NewExpenseSheetState extends State<_NewExpenseSheet> {
   final _descController = TextEditingController();
   final _amountController = TextEditingController();
+  final _customCategoryController = TextEditingController();
   String _type = 'expense';
   String _category = 'Food & Dining';
+  String _customTag = 'Want';
   bool _isSaving = false;
 
   @override
   void dispose() {
     _descController.dispose();
     _amountController.dispose();
+    _customCategoryController.dispose();
     super.dispose();
   }
 
@@ -463,13 +487,20 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
     final amount = double.tryParse(_amountController.text) ?? 0;
     if (amount <= 0) return;
 
+    final String finalCategory = _category == 'Other' 
+        ? _customCategoryController.text.trim().isNotEmpty 
+            ? _customCategoryController.text.trim() 
+            : 'Other'
+        : _category;
+    final String finalTag = _category == 'Other' ? _customTag : TransactionModel.getTagForCategory(_category);
+
     final transaction = TransactionModel(
       id: '',
       uid: uid,
       description: _descController.text.trim(),
       amount: amount,
-      category: _category,
-      tag: TransactionModel.getTagForCategory(_category),
+      category: finalCategory,
+      tag: finalTag,
       type: _type,
       date: DateTime.now(),
     );
@@ -479,9 +510,9 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -517,9 +548,9 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
             Text(
               'New Transaction',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontSize: 20,
-                    color: AppColors.darkBlue,
-                  ),
+                fontSize: 20,
+                color: AppColors.darkBlue,
+              ),
             ),
             const SizedBox(height: 20),
             // Type Selector
@@ -537,14 +568,14 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
                 ),
               ],
               selected: {_type},
-              onSelectionChanged: (val) =>
-                  setState(() => _type = val.first),
+              onSelectionChanged: (val) => setState(() => _type = val.first),
               style: SegmentedButton.styleFrom(
                 selectedBackgroundColor: _type == 'expense'
                     ? AppColors.errorRed.withAlpha(20)
                     : AppColors.successGreen.withAlpha(20),
-                selectedForegroundColor:
-                    _type == 'expense' ? AppColors.errorRed : AppColors.successGreen,
+                selectedForegroundColor: _type == 'expense'
+                    ? AppColors.errorRed
+                    : AppColors.successGreen,
               ),
             ),
             const SizedBox(height: 16),
@@ -578,11 +609,47 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
                 onChanged: (val) =>
                     setState(() => _category = val ?? 'Food & Dining'),
               ),
-            if (_type == 'expense') ...[
+            if (_type == 'expense' && _category == 'Other') ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customCategoryController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter custom category name',
+                  prefixIcon: Icon(Icons.edit_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Tag as',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.darkBlue,
+                      fontSize: 14)),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'Need', label: Text('Need')),
+                  ButtonSegment(value: 'Want', label: Text('Want')),
+                ],
+                selected: {_customTag},
+                onSelectionChanged: (val) =>
+                    setState(() => _customTag = val.first),
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: _customTag == 'Need'
+                      ? AppColors.primaryBlue.withAlpha(20)
+                      : AppColors.warningOrange.withAlpha(20),
+                  selectedForegroundColor: _customTag == 'Need'
+                      ? AppColors.primaryBlue
+                      : AppColors.warningOrange,
+                ),
+              ),
+            ],
+            if (_type == 'expense' && _category != 'Other') ...[
               const SizedBox(height: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: TransactionModel.getTagForCategory(_category) == 'Need'
                       ? AppColors.primaryBlue.withAlpha(15)
@@ -595,7 +662,8 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
                       Icons.auto_awesome_rounded,
                       size: 16,
                       color:
-                          TransactionModel.getTagForCategory(_category) == 'Need'
+                          TransactionModel.getTagForCategory(_category) ==
+                                  'Need'
                               ? AppColors.primaryBlue
                               : AppColors.warningOrange,
                     ),
@@ -606,7 +674,8 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color:
-                            TransactionModel.getTagForCategory(_category) == 'Need'
+                            TransactionModel.getTagForCategory(_category) ==
+                                    'Need'
                                 ? AppColors.primaryBlue
                                 : AppColors.warningOrange,
                       ),
@@ -626,7 +695,9 @@ class _NewExpenseSheetState extends State<_NewExpenseSheet> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Save Transaction'),
             ),
