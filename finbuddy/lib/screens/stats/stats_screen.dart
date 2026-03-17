@@ -35,16 +35,17 @@ class StatsScreen extends StatelessWidget {
                   }
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Statistics',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontSize: 22,
-                                color: AppColors.darkBlue,
-                              ),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkBlue,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -55,14 +56,97 @@ class StatsScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
+                        _buildSummaryCards(expenses),
+                        const SizedBox(height: 24),
                         _buildWantNeedChart(expenses),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
                         _buildCategoryChart(expenses),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   );
                 },
               ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCards(List<TransactionModel> expenses) {
+    double needTotal = 0;
+    double wantTotal = 0;
+
+    for (final t in expenses) {
+      if (t.tag == 'Need') {
+        needTotal += t.amount;
+      } else {
+        wantTotal += t.amount;
+      }
+    }
+
+    final total = needTotal + wantTotal;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _summaryCard(
+            'Total Spent',
+            '₹${total.toStringAsFixed(0)}',
+            Icons.account_balance_wallet_rounded,
+            AppColors.primaryBlue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _summaryCard(
+            'Needs',
+            '₹${needTotal.toStringAsFixed(0)}',
+            Icons.home_rounded,
+            AppColors.primaryBlue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _summaryCard(
+            'Wants',
+            '₹${wantTotal.toStringAsFixed(0)}',
+            Icons.shopping_bag_rounded,
+            AppColors.warningOrange,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.pureWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textLight,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkBlue,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -74,7 +158,7 @@ class StatsScreen extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.lightBlue,
               shape: BoxShape.circle,
             ),
@@ -126,67 +210,71 @@ class StatsScreen extends StatelessWidget {
     final needPercent = (needTotal / total * 100).round();
     final wantPercent = (wantTotal / total * 100).round();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Need vs Want',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.darkBlue,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.pureWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            'Need vs Want',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.darkBlue,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 180,
-                child: PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
-                    sections: [
-                      PieChartSectionData(
-                        color: AppColors.primaryBlue,
-                        value: needTotal,
-                        title: '$needPercent%',
-                        titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        radius: 50,
-                      ),
-                      PieChartSectionData(
-                        color: AppColors.warningOrange,
-                        value: wantTotal,
-                        title: '$wantPercent%',
-                        titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        radius: 50,
-                      ),
-                    ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: 150,
+            height: 150,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 3,
+                centerSpaceRadius: 40,
+                sections: [
+                  PieChartSectionData(
+                    color: AppColors.primaryBlue,
+                    value: needTotal,
+                    title: '$needPercent%',
+                    titleStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    radius: 50,
                   ),
-                ),
+                  PieChartSectionData(
+                    color: AppColors.warningOrange,
+                    value: wantTotal,
+                    title: '$wantPercent%',
+                    titleStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    radius: 50,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 24),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _legendItem('Need', '₹${needTotal.toStringAsFixed(0)}', AppColors.primaryBlue),
-                const SizedBox(height: 12),
-                _legendItem('Want', '₹${wantTotal.toStringAsFixed(0)}', AppColors.warningOrange),
-              ],
-            ),
-          ],
-        ),
-      ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _legendItem('Need', '₹${needTotal.toStringAsFixed(0)}', AppColors.primaryBlue),
+              const SizedBox(width: 24),
+              _legendItem('Want', '₹${wantTotal.toStringAsFixed(0)}', AppColors.warningOrange),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -227,11 +315,9 @@ class StatsScreen extends StatelessWidget {
       const Color(0xFFDDA0DD),
       const Color(0xFF98D8C8),
       const Color(0xFFF7DC6F),
-      const Color(0xFFBDC3C7),
     ];
 
     final sections = <PieChartSectionData>[];
-    final legendItems = <Widget>[];
 
     for (var i = 0; i < sortedEntries.length; i++) {
       final entry = sortedEntries[i];
@@ -243,92 +329,91 @@ class StatsScreen extends StatelessWidget {
         value: entry.value,
         title: '$percent%',
         titleStyle: const TextStyle(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
         radius: 50,
       ));
-
-      legendItems.add(_legendItem(
-        entry.key,
-        '₹${entry.value.toStringAsFixed(0)}',
-        color,
-      ));
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Category Breakdown',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.darkBlue,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.pureWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            'Category Breakdown',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.darkBlue,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 180,
-                child: PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
-                    sections: sections,
-                  ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: 150,
+            height: 150,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 3,
+                centerSpaceRadius: 40,
+                sections: sections,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: [
+              for (var i = 0; i < sortedEntries.length; i++)
+                _legendItem(
+                  sortedEntries[i].key,
+                  '₹${sortedEntries[i].value.toStringAsFixed(0)}',
+                  colors[i % colors.length],
                 ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: legendItems,
-              ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _legendItem(String label, String value, Color color) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textDark,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.darkBlue,
-                ),
-              ),
-            ],
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textDark,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.darkBlue,
           ),
         ),
       ],
