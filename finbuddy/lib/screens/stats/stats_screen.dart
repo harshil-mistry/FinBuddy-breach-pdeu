@@ -264,12 +264,12 @@ class StatsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _legendItem('Need', '₹${needTotal.toStringAsFixed(0)}', AppColors.primaryBlue),
-              const SizedBox(width: 24),
+              const SizedBox(width: 32),
               _legendItem('Want', '₹${wantTotal.toStringAsFixed(0)}', AppColors.warningOrange),
             ],
           ),
@@ -372,7 +372,7 @@ class StatsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Wrap(
             spacing: 16,
             runSpacing: 12,

@@ -380,31 +380,33 @@ class _EditTransactionSheetState extends State<_EditTransactionSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Category
-            const Text('Category',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600, color: AppColors.darkBlue)),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: AppColors.pureWhite,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _category,
-                  isExpanded: true,
-                  items: TransactionModel.allCategories.map((cat) {
-                    return DropdownMenuItem(value: cat, child: Text(cat));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _category = val);
-                  },
+            // Category (only for expense)
+            if (_type == 'expense') ...[
+              const Text('Category',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: AppColors.darkBlue)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.pureWhite,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _category,
+                    isExpanded: true,
+                    items: TransactionModel.allCategories.map((cat) {
+                      return DropdownMenuItem(value: cat, child: Text(cat));
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _category = val);
+                    },
                 ),
               ),
             ),
+            ],
             const SizedBox(height: 28),
 
             ElevatedButton(
